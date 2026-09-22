@@ -1,0 +1,13 @@
+{
+  "name": "aoc-cli",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=23.6"
+  },
+  "scripts": {
+    "aoc": "node cli/commands/index.ts",
+    "test": "node --test \"cli/tests/*.test.ts\""
+  }
+}

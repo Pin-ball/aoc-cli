@@ -1,0 +1,30 @@
+# AoC content: adventofcode.com asks that inputs and puzzle text not be
+# redistributed, so nothing here is committed by default. The exception is
+# meta.json: it records what AoC accepted, and `aoc test` needs it after a clone.
+workspace/puzzles/**
+!workspace/puzzles/**/
+!workspace/puzzles/**/meta.json
+!workspace/puzzles/.gitkeep
+
+# Build output / caches
+node_modules/
+__pycache__/
+*.pyc
+
+# Editor
+.vscode/
+*.code-workspace
+
+# Assistant instructions: yours, not the project's
+CLAUDE.md
+
+# OS
+.DS_Store
+*.swp
+
+# Secrets
+.env
+
+# Local scratch: a .untracked segment keeps a file or folder out of git, at any depth
+*.untracked
+*.untracked.*

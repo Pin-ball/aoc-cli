@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { answersOn, merge, starsOn } from "../core/sync.ts";
+import { answersOn, gapsIn, merge, starsOn } from "../core/sync.ts";
 import type { Meta, PartRecord } from "../core/meta.ts";
 
 const REF = { year: 2024, day: 1 };
@@ -31,7 +31,14 @@ test("stars are read from the calendar's two classes", () => {
   ].join("\n");
 
   const stars = starsOn(html, 2024);
-  assert.deepEqual([...stars.entries()].sort((a, b) => a[0] - b[0]), [[1, 2], [2, 1], [4, 2]]);
+  assert.deepEqual(
+    [...stars.entries()].sort((a, b) => a[0] - b[0]),
+    [
+      [1, 2],
+      [2, 1],
+      [4, 2],
+    ],
+  );
 });
 
 test("another year's links on the same page are not counted", () => {
@@ -116,4 +123,19 @@ test("a part the page says nothing about is left alone", () => {
   const { meta: after, recovered } = merge(REF, meta(), ["765748"]);
   assert.equal(after.part2.answer, null);
   assert.deepEqual(recovered, ["part1"]);
+});
+
+test("a day with its statement and input lacks nothing", () => {
+  assert.deepEqual(gapsIn("--- Part One ---", true, false), []);
+  assert.deepEqual(gapsIn("--- Part One ---\n--- Part Two ---", true, true), []);
+});
+
+test("a missing statement or input is fetched", () => {
+  assert.deepEqual(gapsIn(null, false, false), ["puzzle.md", "input.txt"]);
+  assert.deepEqual(gapsIn(null, true, false), ["puzzle.md"]);
+  assert.deepEqual(gapsIn("--- Part One ---", false, false), ["input.txt"]);
+});
+
+test("a statement read before part 1 was solved is fetched again for part 2", () => {
+  assert.deepEqual(gapsIn("--- Part One ---", true, true), ["puzzle.md"]);
 });

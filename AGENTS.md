@@ -65,12 +65,13 @@ not an essay around it.
 
 - Every day is a folder: `workspace/solutions/<lang>/<year>/dayNN/` with
   `index.ts` or `__init__.py` as the entry point, helpers beside it.
-- Verify with `./aoc run <year> <day>`, never by reasoning about code alone.
+- Verify with `./aoc run -y <year> -d <day>`, never by reasoning about code alone.
   Samples run before the real input; expected answers come from `meta.json`.
 - Node strips types, it does not compile them: no parameter properties
   (`constructor(private x)`), no enums, no namespaces. Declare fields
   explicitly.
 - `cli/core/` holds logic and must not import from anything above it.
+- After changing `cli/`, run `npm test`, `npm run typecheck` and `npm run lint`.
 
 ### Never, in either half
 

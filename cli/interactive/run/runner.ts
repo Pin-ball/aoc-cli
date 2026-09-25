@@ -89,7 +89,8 @@ export class Runner {
 
     this.#running?.abort();
     this.#running = new AbortController();
-    const token = (this.#token += 1);
+    this.#token += 1;
+    const token = this.#token;
     this.#plan = plannedRows(this.#ref, this.#langs);
     this.#rows = this.#plan;
     this.#error = null;

@@ -1,4 +1,4 @@
-import { Surface } from "../../tui/buffer.ts";
+import type { Surface } from "../../tui/buffer.ts";
 import { box } from "../../tui/box.ts";
 import { fits } from "./chrome.ts";
 import type { Screen } from "../app.ts";
@@ -102,8 +102,7 @@ const SHEETS: Record<Screen, Sheet> = { calendar: CALENDAR, day: DAY, test: TEST
 /** Room the right column needs before the left one starts giving way. */
 const RIGHT = 24;
 
-const height = (groups: Group[]): number =>
-  groups.reduce((total, group) => total + group.entries.length + 2, 0) - 1;
+const height = (groups: Group[]): number => groups.reduce((total, group) => total + group.entries.length + 2, 0) - 1;
 
 const widest = (groups: Group[]): number =>
   Math.max(...groups.flatMap((group) => group.entries.map((entry) => entry.key.length)));

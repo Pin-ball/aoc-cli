@@ -1,4 +1,4 @@
-import { Surface } from "../../tui/buffer.ts";
+import type { Surface } from "../../tui/buffer.ts";
 import { box } from "../../tui/box.ts";
 import { PAD, fits } from "./chrome.ts";
 import { readMeta } from "../../core/meta.ts";
@@ -31,7 +31,6 @@ function wrapped(text: string, width: number): string[] {
   return lines;
 }
 
-
 /** Enough rejected answers to see the bracket you have narrowed to. */
 const REJECTED = 3;
 
@@ -49,9 +48,12 @@ function drawRefusal(surface: Surface, why: string): void {
 function drawOffer(surface: Surface, choice: Candidate, rejected: string[]): void {
   surface.write(PAD, 1, choice.part === "part1" ? "part 1" : "part 2", THEME.muted);
   surface.write(PAD, 2, choice.answer, THEME.title);
-  surface.write(PAD, 3, choice.langs.length > 1
-    ? `${choice.langs.join(", ")} agree`
-    : `from ${choice.langs.join("") || "the last run"}`, THEME.faint);
+  surface.write(
+    PAD,
+    3,
+    choice.langs.length > 1 ? `${choice.langs.join(", ")} agree` : `from ${choice.langs.join("") || "the last run"}`,
+    THEME.faint,
+  );
 
   let y = 5;
   if (rejected.length > 0) {

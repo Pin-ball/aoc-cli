@@ -76,7 +76,10 @@ export class Surface {
     for (const char of strip(text)) {
       if (column >= this.#rect.w) return;
       if (column >= 0) {
-        this.#cells[(this.#rect.y + y) * this.#stride + this.#rect.x + column] = { char, style: painted };
+        this.#cells[(this.#rect.y + y) * this.#stride + this.#rect.x + column] = {
+          char,
+          style: painted,
+        };
       }
       column += 1;
     }

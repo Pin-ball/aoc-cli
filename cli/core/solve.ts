@@ -19,7 +19,6 @@ export type Row = {
   note?: string;
 };
 
-
 /** A throw in one place must not cost you the results from everywhere else. */
 async function attempt(
   lang: Language,
@@ -44,12 +43,7 @@ async function attempt(
   }
 }
 
-function rowsFor(
-  lang: Language,
-  source: string,
-  result: DayResult,
-  expected: Record<Part, string | null>,
-): Row[] {
+function rowsFor(lang: Language, source: string, result: DayResult, expected: Record<Part, string | null>): Row[] {
   return PARTS.map((part) => {
     const { answer, micros, error } = result[part];
     const want = expected[part];
@@ -74,10 +68,7 @@ function rowsFor(
 export async function runDay(
   ref: Ref,
   langs: Language[],
-  {
-    samples = true,
-    onProgress,
-  }: { samples?: boolean; onProgress?: (rows: Row[]) => void } = {},
+  { samples = true, onProgress }: { samples?: boolean; onProgress?: (rows: Row[]) => void } = {},
 ): Promise<Row[]> {
   const meta = readMeta(ref);
   const dir = dataDir(ref);
@@ -129,11 +120,7 @@ export function plannedRows(ref: Ref, langs: Language[], { samples = true } = {}
 
 /** Rows that have run, laid over the plan they belong to. */
 export const settle = (plan: Row[], done: Row[]): Row[] =>
-  plan.map(
-    (row) =>
-      done.find((d) => d.lang === row.lang && d.source === row.source && d.part === row.part) ??
-      row,
-  );
+  plan.map((row) => done.find((d) => d.lang === row.lang && d.source === row.source && d.part === row.part) ?? row);
 
 /** Real-input answers every language agreed on; null for a part they disagreed on. */
 export function agreedAnswers(rows: Row[]): Record<string, string | null> {

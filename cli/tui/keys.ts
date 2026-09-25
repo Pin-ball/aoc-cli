@@ -9,13 +9,24 @@ export type Key = {
 
 const ARROWS: Record<string, string> = { A: "up", B: "down", C: "right", D: "left" };
 const TILDES: Record<string, string> = {
-  "1": "home", "3": "delete", "4": "end", "5": "pageup", "6": "pagedown",
-  "7": "home", "8": "end", "15": "f5", "17": "f6",
+  "1": "home",
+  "3": "delete",
+  "4": "end",
+  "5": "pageup",
+  "6": "pagedown",
+  "7": "home",
+  "8": "end",
+  "15": "f5",
+  "17": "f6",
 };
 const LETTERS: Record<string, string> = { H: "home", F: "end", P: "f1", Q: "f2", R: "f3", S: "f4" };
 
-const plain = (name: string, extra: Partial<Key> = {}): Key =>
-  ({ name, shift: false, ctrl: false, ...extra });
+const plain = (name: string, extra: Partial<Key> = {}): Key => ({
+  name,
+  shift: false,
+  ctrl: false,
+  ...extra,
+});
 
 /** Modifier bitfield as xterm sends it: 1 + 1 shift + 2 alt + 4 ctrl. */
 function modifiers(parameters: string[]): { shift: boolean; ctrl: boolean } {

@@ -10,15 +10,30 @@ import { PARTS, readMeta, writeMeta } from "../core/meta.ts";
 import type { Part } from "../core/meta.ts";
 import { blockedBeforeRunning, choose, isBlocked, send } from "../core/submit.ts";
 import { apply, plan } from "../core/reset.ts";
-import { syncYear } from "../core/sync.ts";
+import { diagnose } from "../core/doctor.ts";
+import { completeYear, syncYear } from "../core/sync.ts";
 import { gaveDay, gaveYear, parse, resolveLangs } from "./args.ts";
 import {
-  bold, dayTitle, dim, done, failed, printDayResult, printRows, printTotals, red, step, working, yearTitle,
+  bold,
+  checked,
+  dayTitle,
+  dim,
+  done,
+  failed,
+  printDayResult,
+  printDaySkipped,
+  printRows,
+  printTotals,
+  red,
+  step,
+  title,
+  working,
+  yearTitle,
 } from "./print.ts";
 import { confirm, openInBrowser } from "../core/shell.ts";
 import { agreedAnswers, runDay } from "../core/solve.ts";
 import { lastRun, saveLastRef, saveRun } from "../core/state.ts";
-import { prepare } from "../core/workspace.ts";
+import { prepare, years } from "../core/workspace.ts";
 import { answeredBy, changedSince, recordVerified } from "../core/runs.ts";
 
 const HELP = `
@@ -35,8 +50,9 @@ const HELP = `
     submit   Submit a part                                     [alias: s]
     open     Open the puzzle on adventofcode.com               [alias: o]
     watch    The interactive view, on the day you name         [alias: w]
-    sync     Read accepted answers back from the site
+    sync     Answers back from the site, then any missing files
     reset    Forget a day or a year you have fetched
+    doctor   Check Node, Python, your .env and your session
 
   ${bold("Options:")}
     -y, --year <YEAR>   Puzzle year   ${dim("(default: the year you last ran)")}
@@ -46,6 +62,7 @@ const HELP = `
   ${bold("Arguments:")}
     Languages are named plainly: ${dim("aoc run ts py")}
     submit takes the part: ${dim("aoc submit 2")}   ${dim("(default: the next unsolved one)")}
+    sync covers every year unless given -y: ${dim("aoc sync -y 2024")}
 `;
 
 async function cmdNew(tokens: string[]): Promise<void> {
@@ -137,6 +154,12 @@ async function cmdTest(tokens: string[]): Promise<void> {
     const targets = langs.length > 0 ? langs.filter((l) => available.includes(l)) : available;
     if (targets.length === 0) continue;
 
+    if (!fs.existsSync(path.join(dataDir(day), "input.txt"))) {
+      printDaySkipped(day, "no input.txt, aoc sync fetches it");
+      tally.skipped += 1;
+      continue;
+    }
+
     const rows = await runDay(day, targets, { samples: false });
     if (rows.length === 0) {
       tally.skipped += 1;
@@ -148,7 +171,12 @@ async function cmdTest(tokens: string[]): Promise<void> {
     tally.passed += rows.filter((r) => r.status === "ok").length;
     tally.failed += bad.length;
     if (bad.length > 0) printRows(day, rows);
-    else printDayResult(day, targets.map((t) => t.id), rows);
+    else
+      printDayResult(
+        day,
+        targets.map((t) => t.id),
+        rows,
+      );
   }
 
   printTotals(tally.passed, tally.failed, tally.skipped);
@@ -175,9 +203,7 @@ async function submitFor(ref: Ref, langs: Language[], forced?: Part): Promise<vo
   // takes minutes does not solve it a second time.
   const previous = lastRun();
   const reusable =
-    previous?.ref.year === ref.year &&
-    previous.ref.day === ref.day &&
-    !changedSince(ref, previous.computedAt);
+    previous?.ref.year === ref.year && previous.ref.day === ref.day && !changedSince(ref, previous.computedAt);
 
   let computed: Record<string, string | null>;
   let credited: Record<string, string[]>;
@@ -218,16 +244,24 @@ async function submitFor(ref: Ref, langs: Language[], forced?: Part): Promise<vo
 }
 
 /**
- * Reads a year's stars back from the site. Only an answer missing locally is
- * written; one already recorded is compared and reported, never replaced.
+ * Reads stars back from the site for every year, or the one named, then fetches
+ * whatever each recorded day lacks. Only an answer missing locally is written;
+ * one already recorded is compared and reported, never replaced.
  */
 async function cmdSync(tokens: string[]): Promise<void> {
+  if (gaveDay(tokens)) throw new Error("sync works on whole years: aoc sync, or aoc sync -y 2024.");
   const { ref } = parse(tokens, { langs: false });
 
-  yearTitle(ref.year);
+  let conflicts = 0;
+  for (const year of gaveYear(tokens) ? [ref.year] : years()) conflicts += await syncOne(year);
+  if (conflicts > 0) process.exitCode = 1;
+}
+
+async function syncOne(year: number): Promise<number> {
+  yearTitle(year);
   working("reading the calendar");
 
-  const report = await syncYear(ref.year, (day, found) => {
+  const report = await syncYear(year, (day, found) => {
     for (const part of found) {
       done(`day ${pad(day.day)} ${part}`, readMeta(day)[part].answer ?? undefined);
     }
@@ -235,17 +269,21 @@ async function cmdSync(tokens: string[]): Promise<void> {
 
   for (const clash of report.conflicts) {
     failed(
-      `day ${pad(clash.ref.day)} ${clash.part}: ${clash.local} here, ${clash.site} on the site` +
-        dim("  left alone"),
+      `day ${pad(clash.ref.day)} ${clash.part}: ${clash.local} here, ${clash.site} on the site${dim("  left alone")}`,
     );
   }
 
+  const filled = await completeYear(year, (day, fetched) => {
+    done(`day ${pad(day.day)}`, fetched.join(" "));
+  });
+
   const parts = [`${report.recovered.length} recovered`];
   if (report.conflicts.length > 0) parts.push(red(`${report.conflicts.length} conflicting`));
-  parts.push(dim(`${report.skipped} of ${report.starred} starred days already complete`));
+  parts.push(`${filled} ${filled === 1 ? "day" : "days"} fetched`);
+  parts.push(dim(`${report.skipped} of ${report.starred} starred days already recorded`));
   console.log(`\n  ${parts.join(dim(" · "))}\n`);
 
-  if (report.conflicts.length > 0) process.exitCode = 1;
+  return report.conflicts.length;
 }
 
 /**
@@ -280,6 +318,17 @@ async function cmdReset(tokens: string[]): Promise<void> {
   done(`reset ${scope.what}`);
 }
 
+async function cmdDoctor(tokens: string[]): Promise<void> {
+  if (tokens.length > 0) throw new Error("doctor takes no arguments.");
+  title("aoc doctor");
+  const checks = await diagnose();
+  for (const { status, label, note } of checks) checked(status, label, note);
+
+  const failing = checks.filter((check) => check.status === "fail").length;
+  console.log(failing === 0 ? dim("\n  ready\n") : `\n  ${red(`${failing} to fix`)}\n`);
+  if (failing > 0) process.exitCode = 1;
+}
+
 function cmdOpen(tokens: string[]): void {
   const { ref } = parse(tokens, { langs: false });
   const url = puzzleUrl(ref);
@@ -298,11 +347,16 @@ const COMMANDS: Record<string, Command> = {
   open: cmdOpen,
   sync: cmdSync,
   reset: cmdReset,
+  doctor: cmdDoctor,
 };
 
 const ALIASES: Record<string, string> = {
-  n: "new", r: "run", w: "watch", t: "test",
-  s: "submit", o: "open",
+  n: "new",
+  r: "run",
+  w: "watch",
+  t: "test",
+  s: "submit",
+  o: "open",
 };
 
 const HELP_FLAGS = new Set(["help", "--help", "-h"]);

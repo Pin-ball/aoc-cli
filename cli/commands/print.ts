@@ -5,8 +5,7 @@ import type { Row } from "../core/solve.ts";
 
 const useColor = !process.env.NO_COLOR && process.stdout.isTTY;
 
-const paint = (code: string, text: string): string =>
-  useColor ? `\x1b[${code}m${text}\x1b[0m` : text;
+const paint = (code: string, text: string): string => (useColor ? `\x1b[${code}m${text}\x1b[0m` : text);
 
 export const dim = (t: string) => paint("2", t);
 export const bold = (t: string) => paint("1", t);
@@ -21,6 +20,7 @@ const MARK = {
   unknown: yellow("?"),
   skipped: dim("—"),
   error: red("!"),
+  warn: yellow("!"),
   pending: dim("·"),
 } as const;
 
@@ -28,15 +28,14 @@ const WORKING = dim("…");
 const ACTION = dim("→");
 
 /** The line every command opens with, so output is placeable at a glance. */
-function title(text: string, note?: string): void {
+export function title(text: string, note?: string): void {
   console.log(`\n  ${bold(text)}${note ? dim(`  ${note}`) : ""}\n`);
 }
 
-export const dayTitle = (ref: Ref, note?: string): void =>
-  title(`${ref.year} day ${pad(ref.day)}`, note);
+export const dayTitle = (ref: Ref, note?: string): void => title(`${ref.year} day ${pad(ref.day)}`, note);
 
 /** Longest rendered width of a column, for padding. */
-const widest = <T,>(items: T[], of: (item: T) => string): number =>
+const widest = <T>(items: T[], of: (item: T) => string): number =>
   items.reduce((most, item) => Math.max(most, of(item).length), 0);
 
 const shown = (row: Row) => (row.status === "pending" ? "…" : (row.answer ?? "—"));
@@ -96,6 +95,10 @@ export function printDayResult(ref: Ref, langs: string[], rows: Row[]): void {
   );
 }
 
+/** A day that was not run, and why. */
+export const printDaySkipped = (ref: Ref, why: string): void =>
+  console.log(`  ${MARK.skipped}  ${dim(`day ${pad(ref.day)}`)}  ${dim(why)}`);
+
 export const yearTitle = (year: number): void => title(String(year));
 
 export function printTotals(passed: number, failed: number, skipped: number): void {
@@ -111,3 +114,7 @@ export const working = (text: string): void => console.log(`  ${WORKING} ${dim(t
 export const done = (text: string, note?: string): void =>
   console.log(`  ${MARK.ok}  ${text}${note ? dim(`   ${note}`) : ""}\n`);
 export const failed = (text: string): void => console.log(`  ${MARK.fail}  ${text}\n`);
+
+/** One line of a checklist: a mark, what was checked, and what was found. */
+export const checked = (status: "ok" | "warn" | "fail", label: string, note: string): void =>
+  console.log(`  ${MARK[status]}  ${label.padEnd(12)}  ${dim(note)}`);

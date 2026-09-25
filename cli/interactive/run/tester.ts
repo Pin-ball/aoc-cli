@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import path from "node:path";
 import { yearDir } from "../../core/config.ts";
 import type { Ref } from "../../core/config.ts";
 import { present } from "../../core/languages.ts";

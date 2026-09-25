@@ -4,10 +4,18 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "engines": {
-    "node": ">=23.6"
+    "node": ">=24"
   },
   "scripts": {
     "aoc": "node cli/commands/index.ts",
-    "test": "node --test \"cli/tests/*.test.ts\""
+    "test": "node --test \"cli/tests/*.test.ts\"",
+    "typecheck": "tsc",
+    "lint": "biome check && uvx ruff@0.16.9 check cli && uvx ruff@0.16.9 format --check cli",
+    "format": "biome check --write && uvx ruff@0.16.9 format cli"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@types/node": "24.13.6",
+    "typescript": "7.0.2"
   }
 }

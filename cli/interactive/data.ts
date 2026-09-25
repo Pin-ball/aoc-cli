@@ -5,7 +5,7 @@ import { years } from "../core/workspace.ts";
 import type { Ref } from "../core/config.ts";
 import { present } from "../core/languages.ts";
 import { elapsed } from "../core/format.ts";
-import {PARTS, readMeta} from "../core/meta.ts";
+import { PARTS, readMeta } from "../core/meta.ts";
 import type { Part } from "../core/meta.ts";
 
 export type DayView = {
@@ -54,8 +54,7 @@ export function yearView(year: number): YearView {
   const days = Array.from({ length: DAYS }, (_, index) => {
     const ref: Ref = { year, day: index + 1 };
     const meta = readMeta(ref);
-    const pick = <T,>(of: (part: Part) => T) =>
-      ({ part1: of("part1"), part2: of("part2") }) as Record<Part, T>;
+    const pick = <T>(of: (part: Part) => T) => ({ part1: of("part1"), part2: of("part2") }) as Record<Part, T>;
 
     const unlocksIn = untilUnlock(ref);
     return {

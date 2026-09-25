@@ -1,4 +1,4 @@
-import { Surface } from "../../tui/buffer.ts";
+import type { Surface } from "../../tui/buffer.ts";
 import { shown } from "../../core/config.ts";
 import { byId } from "../../core/languages.ts";
 import { duration } from "../../core/format.ts";

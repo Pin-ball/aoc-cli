@@ -8,14 +8,17 @@ workspace/puzzles/**
 
 # Build output / caches
 node_modules/
+npm-debug.log*
 __pycache__/
 *.pyc
+.venv/
+.ruff_cache/
 
 # Editor
 .vscode/
 *.code-workspace
 
-# Assistant instructions: yours, not the project's
+# Assistant instructions
 CLAUDE.md
 
 # OS
@@ -25,6 +28,6 @@ CLAUDE.md
 # Secrets
 .env
 
-# Local scratch: a .untracked segment keeps a file or folder out of git, at any depth
+# Local scratch
 *.untracked
 *.untracked.*

@@ -7,6 +7,7 @@ import sys
 import time
 from pathlib import Path
 
+
 def load(path: str):
     """
     Imports a day, either py/<year>/dayNN.py or py/<year>/dayNN/__init__.py.

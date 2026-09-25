@@ -29,10 +29,22 @@ export const PALETTE = {
 } as const satisfies Record<string, Rgb>;
 
 const ANSI16: Rgb[] = [
-  [0, 0, 0], [205, 0, 0], [0, 205, 0], [205, 205, 0],
-  [0, 0, 238], [205, 0, 205], [0, 205, 205], [229, 229, 229],
-  [127, 127, 127], [255, 0, 0], [0, 255, 0], [255, 255, 0],
-  [92, 92, 255], [255, 0, 255], [0, 255, 255], [255, 255, 255],
+  [0, 0, 0],
+  [205, 0, 0],
+  [0, 205, 0],
+  [205, 205, 0],
+  [0, 0, 238],
+  [205, 0, 205],
+  [0, 205, 205],
+  [229, 229, 229],
+  [127, 127, 127],
+  [255, 0, 0],
+  [0, 255, 0],
+  [255, 255, 0],
+  [92, 92, 255],
+  [255, 0, 255],
+  [0, 255, 255],
+  [255, 255, 255],
 ];
 
 /** How much colour the stream can carry, honouring NO_COLOR. */
@@ -74,10 +86,7 @@ function colour(rgb: Rgb, depth: Depth, isBackground: boolean): string[] {
 }
 
 export const same = (a: Style, b: Style): boolean =>
-  a.bold === b.bold &&
-  a.inverse === b.inverse &&
-  a.fg?.join() === b.fg?.join() &&
-  a.bg?.join() === b.bg?.join();
+  a.bold === b.bold && a.inverse === b.inverse && a.fg?.join() === b.fg?.join() && a.bg?.join() === b.bg?.join();
 
 /** The escape sequence that resets the terminal and applies one style. */
 export function sgr(style: Style, depth: Depth): string {

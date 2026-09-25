@@ -1,4 +1,4 @@
-import { Surface } from "../../tui/buffer.ts";
+import type { Surface } from "../../tui/buffer.ts";
 import { box } from "../../tui/box.ts";
 import type { Span } from "../../tui/box.ts";
 import type { Style } from "../../tui/style.ts";
@@ -54,10 +54,13 @@ export function drawTesting(surface: Surface, state: TestState, tick: number): v
     for (const [index, day] of state.days.slice(top, top + rows).entries()) {
       const y = index + 1;
       const glyph = GLYPH[day.verdict];
-      inner.write(PAD, y, day.verdict === "running" ? SPINNER[tick % SPINNER.length] : glyph.mark,
-        glyph.style);
-      inner.write(DAY, y, `day ${pad(day.day)}`,
-        day.verdict === "waiting" || day.verdict === "skipped" ? THEME.faint : THEME.text);
+      inner.write(PAD, y, day.verdict === "running" ? SPINNER[tick % SPINNER.length] : glyph.mark, glyph.style);
+      inner.write(
+        DAY,
+        y,
+        `day ${pad(day.day)}`,
+        day.verdict === "waiting" || day.verdict === "skipped" ? THEME.faint : THEME.text,
+      );
 
       let x = LANGS;
       for (const lang of day.langs) {
@@ -69,8 +72,12 @@ export function drawTesting(surface: Surface, state: TestState, tick: number): v
     }
   }
 
-  keys(footer, [
-    { key: "esc", label: state.isRunning ? "stop" : "back" },
-    { key: "t", label: "again" },
-  ], null);
+  keys(
+    footer,
+    [
+      { key: "esc", label: state.isRunning ? "stop" : "back" },
+      { key: "t", label: "again" },
+    ],
+    null,
+  );
 }

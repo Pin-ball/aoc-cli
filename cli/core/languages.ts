@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
+import type { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { ROOT, SOLUTIONS, pad } from "./config.ts";
 import type { Ref } from "./config.ts";
@@ -17,8 +19,7 @@ export type Language = {
 };
 
 /** What a new day starts from. Ships with the tool, so an empty workspace works. */
-const template = (file: string): string =>
-  fs.readFileSync(path.join(ROOT, "cli", "templates", file), "utf8");
+const template = (file: string): string => fs.readFileSync(path.join(ROOT, "cli", "templates", file), "utf8");
 
 /**
  * Every day is a folder: <lang>/<year>/dayNN/<entry>. One shape whatever the
@@ -46,6 +47,14 @@ function write(file: string, body: string): void {
   if (!fs.existsSync(file)) fs.writeFileSync(file, body);
 }
 
+type Pipes = { stdout: Readable; stderr: Readable; channel: Readable };
+
+/** The streams of a child spawned with stdio `["ignore", "pipe", "pipe", "pipe"]`. */
+export function pipesOf(child: ChildProcess): Pipes {
+  const [, stdout, stderr, channel] = child.stdio as unknown as Readable[];
+  return { stdout, stderr, channel };
+}
+
 /** What a driver sent back: its result on fd 3, and whatever the day printed. */
 export type Spoken = { result: string; stdout: string; stderr: string };
 
@@ -57,19 +66,16 @@ export type Spoken = { result: string; stdout: string; stderr: string };
 function exec(cmd: string, args: string[]): Promise<Spoken> {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, { cwd: ROOT, stdio: ["ignore", "pipe", "pipe", "pipe"] });
+    const { stdout, stderr, channel } = pipesOf(child);
     const spoken: Spoken = { result: "", stdout: "", stderr: "" };
 
-    child.stdout.on("data", (d) => (spoken.stdout += d));
-    child.stderr.on("data", (d) => (spoken.stderr += d));
-    (child.stdio[3] as NodeJS.ReadableStream).on("data", (d) => (spoken.result += d));
+    stdout.on("data", (d) => (spoken.stdout += d));
+    stderr.on("data", (d) => (spoken.stderr += d));
+    channel.on("data", (d) => (spoken.result += d));
 
-    child.on("error", (e) =>
-      reject(new Error(`${cmd} could not be started. Is it installed? (${e.message})`)),
-    );
+    child.on("error", (e) => reject(new Error(`${cmd} could not be started. Is it installed? (${e.message})`)));
     child.on("close", (code) =>
-      code === 0
-        ? resolve(spoken)
-        : reject(new Error(spoken.stderr.trim() || `${cmd} exited ${code}`)),
+      code === 0 ? resolve(spoken) : reject(new Error(spoken.stderr.trim() || `${cmd} exited ${code}`)),
     );
   });
 }
@@ -143,6 +149,4 @@ export const byId = (id: string): Language => {
 };
 
 /** Languages that already have a solution file for this day. */
-export const present = (ref: Ref): Language[] =>
-  LANGUAGES.filter((l) => fs.existsSync(l.solutionPath(ref)));
-
+export const present = (ref: Ref): Language[] => LANGUAGES.filter((l) => fs.existsSync(l.solutionPath(ref)));

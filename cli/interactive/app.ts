@@ -38,9 +38,12 @@ export type Step = { state: State; effect?: Effect };
 export function initial(): State {
   const years = knownYears();
   const last = lastRef();
-  const year = last && years.includes(last.year)
-    ? last.year
-    : years.includes(currentYear()) ? currentYear() : years[years.length - 1];
+  const year =
+    last && years.includes(last.year)
+      ? last.year
+      : years.includes(currentYear())
+        ? currentYear()
+        : years[years.length - 1];
 
   return {
     years,

@@ -1,4 +1,7 @@
-import { fetchCalendar, fetchDayPage } from "./aoc-api.ts";
+import fs from "node:fs";
+import path from "node:path";
+import { fetchCalendar, fetchDayPage, fetchInput, fetchPuzzle } from "./aoc-api.ts";
+import { dataDir, yearDir } from "./config.ts";
 import type { Ref } from "./config.ts";
 import { PARTS, readMeta, same, writeMeta } from "./meta.ts";
 import type { Meta, Part } from "./meta.ts";
@@ -23,9 +26,7 @@ const ANSWERED = /Your puzzle answer was\s*<code>([^<]{1,64})<\/code>/g;
  * rather than something wrong.
  */
 export const answersOn = (html: string): string[] =>
-  [...html.matchAll(ANSWERED)]
-    .map((match) => match[1].trim())
-    .filter((answer) => /^[\w.+-]+$/.test(answer));
+  [...html.matchAll(ANSWERED)].map((match) => match[1].trim()).filter((answer) => /^[\w.+-]+$/.test(answer));
 
 /**
  * Stars per day, from the year's calendar. Two classes mark progress, and
@@ -89,6 +90,7 @@ export type Progress = (ref: Ref, found: Part[]) => void;
  */
 export async function syncYear(year: number, onDay?: Progress): Promise<Report> {
   const stars = starsOn(await fetchCalendar(year), year);
+  await wait(PAUSE);
   const report: Report = { recovered: [], conflicts: [], starred: stars.size, skipped: 0 };
 
   for (const day of [...stars.keys()].sort((a, b) => a - b)) {
@@ -111,4 +113,60 @@ export async function syncYear(year: number, onDay?: Progress): Promise<Report> 
     await wait(PAUSE);
   }
   return report;
+}
+
+/** Days of a year that have a record, oldest first. */
+export function recordedDays(year: number): Ref[] {
+  const dir = yearDir(year);
+  if (!fs.existsSync(dir)) return [];
+
+  return fs
+    .readdirSync(dir)
+    .filter((name) => /^day\d+$/.test(name) && fs.existsSync(path.join(dir, name, "meta.json")))
+    .map((name) => ({ year, day: Number(name.slice(3)) }))
+    .sort((a, b) => a.day - b.day);
+}
+
+export type Gap = "puzzle.md" | "input.txt";
+
+/** The files a recorded day still needs, given what is on disk and whether part 1 is answered. */
+export function gapsIn(puzzle: string | null, hasInput: boolean, part1Answered: boolean): Gap[] {
+  const gaps: Gap[] = [];
+  if (puzzle === null || (part1Answered && !/Part Two/i.test(puzzle))) gaps.push("puzzle.md");
+  if (!hasInput) gaps.push("input.txt");
+  return gaps;
+}
+
+function gapsOf(ref: Ref): Gap[] {
+  const dir = dataDir(ref);
+  const puzzle = path.join(dir, "puzzle.md");
+  return gapsIn(
+    fs.existsSync(puzzle) ? fs.readFileSync(puzzle, "utf8") : null,
+    fs.existsSync(path.join(dir, "input.txt")),
+    readMeta(ref).part1.answer !== null,
+  );
+}
+
+export type Filled = (ref: Ref, fetched: Gap[]) => void;
+
+/** Fetches whatever a year's recorded days lack, and returns how many days needed it. */
+export async function completeYear(year: number, onDay?: Filled): Promise<number> {
+  let filled = 0;
+
+  for (const ref of recordedDays(year)) {
+    const gaps = gapsOf(ref);
+    if (gaps.length === 0) continue;
+
+    if (gaps.includes("puzzle.md")) {
+      await fetchPuzzle(ref);
+      await wait(PAUSE);
+    }
+    if (gaps.includes("input.txt")) {
+      await fetchInput(ref);
+      await wait(PAUSE);
+    }
+    filled += 1;
+    onDay?.(ref, gaps);
+  }
+  return filled;
 }

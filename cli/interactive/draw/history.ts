@@ -1,7 +1,7 @@
-import { Surface } from "../../tui/buffer.ts";
+import type { Surface } from "../../tui/buffer.ts";
 import type { Ref } from "../../core/config.ts";
 import { elapsed } from "../../core/format.ts";
-import {PARTS, readMeta} from "../../core/meta.ts";
+import { PARTS, readMeta } from "../../core/meta.ts";
 import { PAD } from "./chrome.ts";
 import { THEME } from "./theme.ts";
 
@@ -23,8 +23,14 @@ function stamp(at: string | null): string {
   return `${two(when.getDate())} ${MONTHS[when.getMonth()]}  ${two(when.getHours())}:${two(when.getMinutes())}`;
 }
 
-const moment = (at: string | null, what: string, detail: string, extra: Partial<Moment> = {}): Moment =>
-  ({ at, what, detail, took: null, isStar: false, ...extra });
+const moment = (at: string | null, what: string, detail: string, extra: Partial<Moment> = {}): Moment => ({
+  at,
+  what,
+  detail,
+  took: null,
+  isStar: false,
+  ...extra,
+});
 
 /**
  * What `meta.json` remembers of a day, as a timeline. Nothing new is stored:
@@ -41,10 +47,12 @@ export function momentsOf(ref: Ref): Moment[] {
     const name = `part ${index + 1}`;
 
     if (record.answer !== null) {
-      moments.push(moment(record.solved, `${name} accepted`, record.answer, {
-        took: elapsed(meta.started, record.solved),
-        isStar: true,
-      }));
+      moments.push(
+        moment(record.solved, `${name} accepted`, record.answer, {
+          took: elapsed(meta.started, record.solved),
+          isStar: true,
+        }),
+      );
     }
     for (const wrong of record.wrong) moments.push(moment(null, `${name} rejected`, wrong));
 
@@ -78,8 +86,7 @@ export function drawHistory(surface: Surface, ref: Ref, scroll: number): void {
   for (const [index, moment] of shown.entries()) {
     surface.write(PAD, index, stamp(moment.at), THEME.faint);
     surface.write(WHAT, index, moment.what, moment.isStar ? THEME.star : THEME.muted);
-    surface.write(DETAIL, index, moment.detail.slice(0, Math.max(0, surface.width - DETAIL - 10)),
-      THEME.text);
+    surface.write(DETAIL, index, moment.detail.slice(0, Math.max(0, surface.width - DETAIL - 10)), THEME.text);
     if (moment.took !== null) surface.writeRight(index, `${moment.took}  `, THEME.faint);
   }
 }

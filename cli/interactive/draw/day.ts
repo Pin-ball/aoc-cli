@@ -1,4 +1,4 @@
-import { Surface } from "../../tui/buffer.ts";
+import type { Surface } from "../../tui/buffer.ts";
 import { box } from "../../tui/box.ts";
 import type { Span } from "../../tui/box.ts";
 import { pad } from "../../core/config.ts";
@@ -112,14 +112,18 @@ export function drawDay(
   else if (tab === "history") drawHistory(pane, run.ref, scroll);
   else drawResults(pane, day, run);
 
-  keys(footer, [
-    { key: "←→", label: "day" },
-    { key: "⇥", label: "tab" },
-    { key: "r", label: "run" },
-    { key: "s", label: "submit" },
-    { key: "esc", label: "back" },
-    { key: "h", label: "help" },
-  ], notice);
+  keys(
+    footer,
+    [
+      { key: "←→", label: "day" },
+      { key: "⇥", label: "tab" },
+      { key: "r", label: "run" },
+      { key: "s", label: "submit" },
+      { key: "esc", label: "back" },
+      { key: "h", label: "help" },
+    ],
+    notice,
+  );
 }
 
 /** How far back a pane can be scrolled, so a key press cannot run off the end. */

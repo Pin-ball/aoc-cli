@@ -33,7 +33,8 @@ export function answeredBy(rows: Row[]): Record<string, string[]> {
   const by: Record<string, string[]> = {};
   for (const row of rows) {
     if (row.source !== "input" || row.answer === null) continue;
-    (by[row.part] ??= []).push(row.lang);
+    by[row.part] ??= [];
+    by[row.part].push(row.lang);
   }
   return by;
 }
@@ -42,10 +43,7 @@ function newestUnder(dir: string): number {
   let newest = 0;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
-    newest = Math.max(
-      newest,
-      entry.isDirectory() ? newestUnder(full) : fs.statSync(full).mtimeMs,
-    );
+    newest = Math.max(newest, entry.isDirectory() ? newestUnder(full) : fs.statSync(full).mtimeMs);
   }
   return newest;
 }

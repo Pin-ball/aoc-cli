@@ -1,4 +1,4 @@
-import { Surface } from "../../tui/buffer.ts";
+import type { Surface } from "../../tui/buffer.ts";
 import type { OutputLine } from "../run/runner.ts";
 import { PAD } from "./chrome.ts";
 import { LANG_STYLE, THEME } from "./theme.ts";
@@ -51,9 +51,12 @@ export function drawOutput(surface: Surface, lines: OutputLine[], scroll: number
       surface.write(PAD, index, line.lang, LANG_STYLE[line.lang] ?? THEME.text);
       surface.write(PAD + line.lang.length + 1, index, line.source, THEME.faint);
     }
-    surface.write(BAR, index, line.stream === "stderr" ? "┃" : "│",
-      line.stream === "stderr" ? THEME.bad : THEME.faint);
-    surface.write(TEXT, index, line.text.slice(0, Math.max(0, surface.width - TEXT - 1)),
-      line.stream === "stderr" ? THEME.bad : THEME.text);
+    surface.write(BAR, index, line.stream === "stderr" ? "┃" : "│", line.stream === "stderr" ? THEME.bad : THEME.faint);
+    surface.write(
+      TEXT,
+      index,
+      line.text.slice(0, Math.max(0, surface.width - TEXT - 1)),
+      line.stream === "stderr" ? THEME.bad : THEME.text,
+    );
   }
 }

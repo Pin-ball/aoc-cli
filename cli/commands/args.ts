@@ -24,15 +24,17 @@ export function parse(tokens: string[], accepts: Accepts = {}): Args {
 
   for (let i = 0; i < tokens.length; i += 1) {
     const token = tokens[i];
-    const valueOf = (name: string) => {
+    const valueFor = (name: string) => {
       const inline = token.indexOf("=");
-      const value = inline > -1 ? token.slice(inline + 1) : tokens[(i += 1)];
+      if (inline > -1) return whole(token.slice(inline + 1), name);
+      i += 1;
+      const value = tokens[i];
       if (value === undefined) throw new Error(`--${name} needs a value.`);
       return whole(value, name);
     };
 
-    if (/^(-y|--year)(=|$)/.test(token)) year = valueOf("year");
-    else if (/^(-d|--day)(=|$)/.test(token)) day = valueOf("day");
+    if (/^(-y|--year)(=|$)/.test(token)) year = valueFor("year");
+    else if (/^(-d|--day)(=|$)/.test(token)) day = valueFor("day");
     else if (token.startsWith("-")) throw new Error(`Unknown option ${token}.`);
     else if (/^\d+$/.test(token)) rest.push(token);
     else if (takesLangs) langs.push(byId(token));
@@ -78,12 +80,9 @@ export function resolveLangs(ref: Ref, chosen: Language[]): Language[] {
   const strays = strayFlatFiles(ref);
   if (strays.length > 0) {
     throw new Error(
-      `A day is a folder now. Move ${strays.map(shown).join(", ")} ` +
-        `into day${pad(ref.day)}/ as the entry point.`,
+      `A day is a folder now. Move ${strays.map(shown).join(", ")} ` + `into day${pad(ref.day)}/ as the entry point.`,
     );
   }
 
-  throw new Error(
-    `No solution yet for ${ref.year} day ${pad(ref.day)}. Run: aoc new -y ${ref.year} -d ${ref.day} ts`,
-  );
+  throw new Error(`No solution yet for ${ref.year} day ${pad(ref.day)}. Run: aoc new -y ${ref.year} -d ${ref.day} ts`);
 }

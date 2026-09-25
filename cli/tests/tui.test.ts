@@ -16,7 +16,10 @@ test("split hands the remainder to the last flexible track", () => {
 
 test("split never runs past the rectangle it was given", () => {
   const tracks = split(RECT, "y", [4, 4, 4, 4]);
-  assert.deepEqual(tracks.map((t) => t.h), [4, 4, 2, 0]);
+  assert.deepEqual(
+    tracks.map((t) => t.h),
+    [4, 4, 2, 0],
+  );
 });
 
 test("a surface clipped past its edge reports no room rather than negative room", () => {
@@ -71,7 +74,10 @@ test("decode reads arrows, modifiers and control keys", () => {
 });
 
 test("decode keeps every key of a chunk that arrived at once", () => {
-  assert.deepEqual(decode("\u001b[C\u001b[Cx").map((k) => k.char ?? k.name), ["right", "right", "x"]);
+  assert.deepEqual(
+    decode("\u001b[C\u001b[Cx").map((k) => k.char ?? k.name),
+    ["right", "right", "x"],
+  );
 });
 
 test("sgr says nothing when there is no colour to say it in", () => {

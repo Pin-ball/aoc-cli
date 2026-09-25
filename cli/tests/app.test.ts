@@ -22,8 +22,7 @@ const state = (over: Partial<State> = {}): State => ({
 const char = (c: string): Key => ({ name: "char", char: c }) as Key;
 const named = (name: string, over: Partial<Key> = {}): Key => ({ name, ...over }) as Key;
 
-const after = (start: State, ...keys: Key[]): State =>
-  keys.reduce((current, key) => reduce(current, key).state, start);
+const after = (start: State, ...keys: Key[]): State => keys.reduce((current, key) => reduce(current, key).state, start);
 
 test("q and ctrl-c leave from anywhere, overlay or not", () => {
   for (const screen of ["calendar", "day", "test"] as Screen[]) {

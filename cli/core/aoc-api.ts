@@ -1,28 +1,24 @@
 import fs from "node:fs";
 import path from "node:path";
-import { dataDir, env } from "./config.ts";
+import { currentYear, dataDir } from "./config.ts";
+import { settings } from "./env.ts";
 import { PARTS, readMeta, writeMeta } from "./meta.ts";
 import type { Ref } from "./config.ts";
 
 const BASE = "https://adventofcode.com";
 
 /** Puzzles unlock at midnight EST (UTC-5). */
-export const unlockTime = ({ year, day }: Ref): Date =>
-  new Date(Date.UTC(year, 11, day, 5, 0, 0));
+export const unlockTime = ({ year, day }: Ref): Date => new Date(Date.UTC(year, 11, day, 5, 0, 0));
 
 export const puzzleUrl = ({ year, day }: Ref): string => `${BASE}/${year}/day/${day}`;
 
 export const calendarUrl = (year: number): string => `${BASE}/${year}`;
 
 function headers(): Record<string, string> {
-  const { AOC_SESSION, AOC_USER_AGENT } = env();
-  if (!AOC_SESSION) {
-    throw new Error("AOC_SESSION is not set. Copy .env.example to .env and fill it in.");
-  }
-  return {
-    cookie: `session=${AOC_SESSION}`,
-    "user-agent": AOC_USER_AGENT || "advent-of-code cli",
-  };
+  const { session, userAgent } = settings();
+  if (session.problem !== null) throw new Error(session.problem);
+  if (userAgent.problem !== null) throw new Error(userAgent.problem);
+  return { cookie: `session=${session.value}`, "user-agent": userAgent.value };
 }
 
 async function get(url: string): Promise<string> {
@@ -39,6 +35,16 @@ async function get(url: string): Promise<string> {
 
 /** The year's calendar, which marks how many stars each day has. */
 export const fetchCalendar = (year: number): Promise<string> => get(calendarUrl(year));
+
+export type Account = { signedIn: boolean; name: string | null };
+
+/** Whether AoC takes the session, and the name it knows you by when it shows one. */
+export async function account(): Promise<Account> {
+  const html = await get(calendarUrl(currentYear()));
+  if (/href="\/auth\/login"|\[Log In\]/.test(html)) return { signedIn: false, name: null };
+  const name = html.match(/<div class="user">([^<]+)/)?.[1].trim() || null;
+  return { signedIn: true, name };
+}
 
 /** A day's page, which states the accepted answers for the parts you have solved. */
 export const fetchDayPage = (ref: Ref): Promise<string> => get(puzzleUrl(ref));
@@ -71,8 +77,7 @@ const ENTITIES: Record<string, string> = {
   "&apos;": "'",
 };
 
-const decode = (html: string): string =>
-  html.replace(/&(?:lt|gt|amp|quot|apos|#39);/g, (m) => ENTITIES[m] ?? m);
+const decode = (html: string): string => html.replace(/&(?:lt|gt|amp|quot|apos|#39);/g, (m) => ENTITIES[m] ?? m);
 
 /**
  * AoC's markup is small and stable, so a handful of replacements beat pulling
@@ -87,8 +92,9 @@ function toMarkdown(html: string): string {
       .replace(/<\/?(?:ul|p)>/g, "\n")
       .replace(/<em[^>]*>(.*?)<\/em>/gs, "**$1**")
       .replace(/<code>(.*?)<\/code>/gs, "`$1`")
-      .replace(/<a [^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gs, (_, href, label) =>
-        `[${label}](${href.startsWith("/") ? BASE + href : href})`,
+      .replace(
+        /<a [^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gs,
+        (_, href, label) => `[${label}](${href.startsWith("/") ? BASE + href : href})`,
       )
       .replace(/<[^>]+>/g, ""),
   )
@@ -166,19 +172,13 @@ export type SubmitVerdict =
   | { kind: "wait"; message: string }
   | { kind: "unknown"; message: string };
 
-export async function submitAnswer(
-  ref: Ref,
-  level: 1 | 2,
-  answer: string,
-): Promise<SubmitVerdict> {
+export async function submitAnswer(ref: Ref, level: 1 | 2, answer: string): Promise<SubmitVerdict> {
   const response = await fetch(`${BASE}/${ref.year}/day/${ref.day}/answer`, {
     method: "POST",
     headers: { ...headers(), "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ level: String(level), answer }).toString(),
   });
-  const text = toMarkdown(
-    (await response.text()).match(/<article[^>]*>(.*?)<\/article>/s)?.[1] ?? "",
-  );
+  const text = toMarkdown((await response.text()).match(/<article[^>]*>(.*?)<\/article>/s)?.[1] ?? "");
 
   if (/That's the right answer/i.test(text)) return { kind: "correct" };
   if (/not the right answer/i.test(text)) {

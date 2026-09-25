@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { ROOT } from "../../core/config.ts";
 import { SAMPLE_FILE } from "../../core/meta.ts";
 import type { Ref } from "../../core/config.ts";
+import { pipesOf } from "../../core/languages.ts";
 import type { DayResult, Language } from "../../core/languages.ts";
 
 const WORKER = path.join(path.dirname(fileURLToPath(import.meta.url)), "worker.ts");
@@ -50,6 +51,11 @@ function lineReader(emit: (line: string) => void): { push(chunk: string): void; 
   };
 }
 
+function workerFlags(): string[] | undefined {
+  const kept = process.execArgv.filter((flag) => !flag.startsWith("--input-type"));
+  return kept.length === process.execArgv.length ? undefined : kept;
+}
+
 /**
  * Runs a TypeScript solution on a worker thread. In-process it would block the
  * event loop for its whole duration, freezing the screen and the keyboard.
@@ -60,7 +66,7 @@ function onWorker(solution: string, input: string, { onOutput, signal }: Options
   return new Promise<DayResult>((resolve, reject) => {
     const worker = new Worker(WORKER, {
       workerData: { solution, input },
-      execArgv: process.execArgv.filter((flag) => !flag.startsWith("--input-type")),
+      execArgv: workerFlags(),
       stdout: true,
       stderr: true,
     });
@@ -121,12 +127,13 @@ function onProcess(solution: string, input: string, { onOutput, signal }: Option
     let failure = "";
     const out = lineReader((line) => onOutput?.(line, "stdout"));
     const err = lineReader((line) => onOutput?.(line, "stderr"));
-    (child.stdio[3] as NodeJS.ReadableStream).on("data", (chunk) => (payload += chunk));
+    const { stdout, stderr, channel } = pipesOf(child);
+    channel.on("data", (chunk) => (payload += chunk));
 
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk: string) => out.push(chunk));
-    child.stderr.on("data", (chunk: string) => {
+    stdout.setEncoding("utf8");
+    stderr.setEncoding("utf8");
+    stdout.on("data", (chunk: string) => out.push(chunk));
+    stderr.on("data", (chunk: string) => {
       failure += chunk;
       err.push(chunk);
     });
@@ -139,7 +146,10 @@ function onProcess(solution: string, input: string, { onOutput, signal }: Option
       out.end();
       err.end();
       if (signal?.aborted) return;
-      const line = payload.trim().split("\n").findLast((l) => l.startsWith("{"));
+      const line = payload
+        .trim()
+        .split("\n")
+        .findLast((l) => l.startsWith("{"));
       if (line === undefined) {
         reject(new Error(failure.trim().split("\n").at(-1) ?? `python3 exited ${code}`));
         return;

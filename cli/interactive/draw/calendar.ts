@@ -1,4 +1,4 @@
-import { Surface } from "../../tui/buffer.ts";
+import type { Surface } from "../../tui/buffer.ts";
 import { box } from "../../tui/box.ts";
 import { split } from "../../tui/layout.ts";
 import type { Style } from "../../tui/style.ts";
@@ -69,8 +69,7 @@ function drawLanguages(surface: Surface, day: DayView): void {
   for (const lang of day.langs) {
     const reproduced = PARTS.filter((part) => day.verified[part]?.[lang]).length;
     surface.write(x, 6, lang, LANG_STYLE[lang] ?? THEME.text);
-    surface.write(x + lang.length + 1, 6, "★".repeat(reproduced) + "·".repeat(2 - reproduced),
-      THEME.faint);
+    surface.write(x + lang.length + 1, 6, "★".repeat(reproduced) + "·".repeat(2 - reproduced), THEME.faint);
     x += lang.length + 5;
   }
 }
@@ -83,13 +82,16 @@ function drawPrompt(surface: Surface, day: DayView): void {
     return;
   }
   surface.write(LEFT, y, "n", THEME.hintKey);
-  surface.write(LEFT + 4, y, day.title === null ? "fetch this day" : "start a ts file",
-    THEME.hintLabel);
+  surface.write(LEFT + 4, y, day.title === null ? "fetch this day" : "start a ts file", THEME.hintLabel);
 }
 
 function drawPanel(surface: Surface, day: DayView): void {
-  surface.write(LEFT, 1, day.title ?? (day.unlocked ? "not fetched" : "not open yet"),
-    day.title ? THEME.title : THEME.muted);
+  surface.write(
+    LEFT,
+    1,
+    day.title ?? (day.unlocked ? "not fetched" : "not open yet"),
+    day.title ? THEME.title : THEME.muted,
+  );
 
   drawParts(surface, day);
   if (day.langs.length > 0) drawLanguages(surface, day);
@@ -99,12 +101,7 @@ function drawPanel(surface: Surface, day: DayView): void {
 }
 
 /** The home screen: the year's grid beside the day under the cursor. */
-export function drawCalendar(
-  surface: Surface,
-  view: YearView,
-  selected: number,
-  notice: string | null = null,
-): void {
+export function drawCalendar(surface: Surface, view: YearView, selected: number, notice: string | null = null): void {
   if (tooSmall(surface)) return;
 
   const { header, body, footer } = chrome(surface);
@@ -115,11 +112,7 @@ export function drawCalendar(
   const area = { x: MARGIN, y: 0, w: body.width - MARGIN * 2, h: height };
   const [left, , right] = split(area, "x", [LEFT + GRID + 4, 1, "*"]);
 
-  drawGrid(
-    box(body.clip(left), { title: stepper(String(view.year)), border: THEME.line }),
-    view,
-    selected,
-  );
+  drawGrid(box(body.clip(left), { title: stepper(String(view.year)), border: THEME.line }), view, selected);
   drawPanel(
     box(body.clip(right), {
       title: [{ text: `day ${pad(selected)}`, style: THEME.title }],
@@ -128,12 +121,16 @@ export function drawCalendar(
     view.days[selected - 1],
   );
 
-  keys(footer, [
-    { key: "↑↓←→", label: "day" },
-    { key: "< >", label: "year" },
-    { key: "⏎", label: "open" },
-    { key: "n", label: "fetch" },
-    { key: "t", label: "test" },
-    { key: "h", label: "help" },
-  ], notice);
+  keys(
+    footer,
+    [
+      { key: "↑↓←→", label: "day" },
+      { key: "< >", label: "year" },
+      { key: "⏎", label: "open" },
+      { key: "n", label: "fetch" },
+      { key: "t", label: "test" },
+      { key: "h", label: "help" },
+    ],
+    notice,
+  );
 }

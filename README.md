@@ -38,9 +38,9 @@ TypeScript and Python, sharing one input.
 
 ### ✅ Requirements
 
-- **Node ≥ 23.6** runs the TypeScript directly, with no build step
+- **Node ≥ 24** runs the TypeScript directly, with no build step
 - **Python ≥ 3.12** only if you want the `py` track
-- **Nothing else**: `aoc-cli` has no dependencies
+- **Nothing else**: no `npm install` to run `aoc`
 
 ### 📥 Clone it
 
@@ -52,6 +52,7 @@ git clone https://github.com/Pin-ball/aoc-cli.git advent-of-code
 cd advent-of-code
 
 git remote rename origin upstream                                      # aoc-cli
+git remote set-url --push upstream DISABLED                            # pull only
 git remote add origin git@github.com:YOUR-USERNAME/advent-of-code.git  # yours
 git push -u origin main
 
@@ -65,16 +66,18 @@ the next person.
 
 Inputs are tied to your account.
 Copy the **value** of the `session` cookie from devtools, under **Storage** in
-Firefox and **Application** in Chrome.
+Firefox and **Application** in Chrome. Set `AOC_USER_AGENT` to your own
+repository and email, so AoC can reach you if something goes wrong.
 
 ```bash
-cp .env.example .env               # paste it into AOC_SESSION
-ln -s "$PWD/aoc" ~/.local/bin/aoc  # optional
+cp .env.example .env                # fill in AOC_SESSION and AOC_USER_AGENT
+ln -sf "$PWD/aoc" ~/.local/bin/aoc  # optional
+aoc doctor                          # check it all works
 ```
 
 <br/>
 
-## ⭐ Solving a day
+## ⭐ Running aoc
 
 ### 🖥️ Interactive view
 
@@ -97,14 +100,16 @@ aoc new -d 12 ts py     # fetch the puzzle, make the files
 aoc run -d 12           # samples, then the real input
 aoc submit 2            # send part 2
 aoc test -y 2024        # re-check a whole year against its answers
-aoc sync -y 2024        # record the answers AoC has already accepted
+aoc sync                # record the answers AoC has already accepted
 aoc reset -y 2024 -d 5  # forget a day you fetched, once you confirm
+aoc doctor              # check Node, Python, your .env and your session
 ```
 
 `-y` and `-d` default to the day you last looked at. `aoc -h` lists everything.
 
-`aoc sync` catches a fresh clone up with the stars on your account. It fills in
-what is missing and never overwrites an answer already recorded.
+`aoc sync` catches a fresh clone up with your account: the answers you already
+gave, then each day's puzzle, sample and input. It covers every year unless
+given `-y`, and never overwrites an answer already recorded.
 
 <br/>
 
@@ -130,21 +135,36 @@ Shared helpers go in `workspace/solutions/<lang>/lib/`, imported as
 
 <br/>
 
-## 📂 Where things are
+## 📂 What gets committed
 
 ```
-workspace/
-  solutions/<lang>/<year>/dayNN/    the code you write
-  puzzles/<year>/dayNN/
-    puzzle.md  input.txt  sample.txt    gitignored: AoC asks these not be shared
-    meta.json                           committed: the answers and the clock
-
-cli/                                aoc itself
-AGENTS.md                           what an AI assistant may do here
+workspace/solutions/     your code                          # committed
+workspace/puzzles/       puzzle.md  sample.txt  input.txt   # gitignored
+                         meta.json                          # committed
 ```
 
-`meta.json` is the only thing committed beside a puzzle, because `aoc test`
-needs it after a clone.
+[AGENTS.md](AGENTS.md) sets what an AI assistant may do here.
+
+<br/>
+
+## 🛠️ Working on aoc-cli
+
+Only needed to change `cli/` itself: solving puzzles never touches this.
+
+The tooling is dev dependencies, so `aoc` itself still runs without them.
+TypeScript checks the types, [Biome](https://biomejs.dev) lints the TypeScript
+and [Ruff](https://docs.astral.sh/ruff/) the Python. Ruff runs through
+[uv](https://docs.astral.sh/uv/), which is the one thing to install for it.
+
+```bash
+npm ci             # TypeScript and Biome, once
+npm test           # the test suite
+npm run typecheck  # the types
+npm run lint       # lint and formatting, as CI checks them
+npm run format     # fix what can be fixed
+```
+
+[CONTRIBUTING.md](CONTRIBUTING.md) covers sending a change.
 
 <br/>
 

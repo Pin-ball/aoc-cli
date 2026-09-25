@@ -1,4 +1,4 @@
-import { Surface } from "./buffer.ts";
+import type { Surface } from "./buffer.ts";
 import { NONE } from "./style.ts";
 import type { Style } from "./style.ts";
 

@@ -33,7 +33,10 @@ test("an unknown option is refused rather than taken for a language", () => {
 });
 
 test("languages are named plainly, and only where a command takes them", () => {
-  assert.deepEqual(parse(["-y", "2024", "-d", "5", "ts", "py"]).langs.map((l) => l.id), ["ts", "py"]);
+  assert.deepEqual(
+    parse(["-y", "2024", "-d", "5", "ts", "py"]).langs.map((l) => l.id),
+    ["ts", "py"],
+  );
   assert.throws(() => parse(["ts"], { langs: false }), /takes no language/);
   assert.throws(() => parse(["nope"]), /nope/);
 });

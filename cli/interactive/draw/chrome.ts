@@ -1,5 +1,5 @@
 import type { Span } from "../../tui/box.ts";
-import { Surface } from "../../tui/buffer.ts";
+import type { Surface } from "../../tui/buffer.ts";
 import { split } from "../../tui/layout.ts";
 import { THEME } from "./theme.ts";
 
@@ -12,16 +12,18 @@ const MIN_WIDTH = 75;
 const MIN_HEIGHT = 25;
 
 /** Whether there is room for a screen at all. Overlays ask before floating. */
-export const fits = (surface: Surface): boolean =>
-  surface.width >= MIN_WIDTH && surface.height >= MIN_HEIGHT;
+export const fits = (surface: Surface): boolean => surface.width >= MIN_WIDTH && surface.height >= MIN_HEIGHT;
 
 /** Says so, rather than drawing a layout that cannot fit. Returns whether it did. */
 export function tooSmall(surface: Surface): boolean {
   if (fits(surface)) return false;
   surface.write(2, 1, "terminal too small", THEME.title);
-  surface.write(2, 3,
+  surface.write(
+    2,
+    3,
     `aoc needs ${MIN_WIDTH} by ${MIN_HEIGHT}, this is ${surface.width} by ${surface.height}`,
-    THEME.muted);
+    THEME.muted,
+  );
   return true;
 }
 

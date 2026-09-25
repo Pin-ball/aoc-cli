@@ -53,10 +53,7 @@ export class Screen {
   }
 
   /** Takes over the terminal. Only ever call this on a TTY. */
-  static take(
-    out: NodeJS.WriteStream = process.stdout,
-    input: NodeJS.ReadStream = process.stdin,
-  ): Screen {
+  static take(out: NodeJS.WriteStream = process.stdout, input: NodeJS.ReadStream = process.stdin): Screen {
     guard();
     const screen = new Screen(out, input, detectDepth(out));
     open.add(screen);

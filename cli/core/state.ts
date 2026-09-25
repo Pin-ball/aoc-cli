@@ -47,10 +47,6 @@ export const saveLastRef = (ref: Ref): void => write({ ...read(), ref });
 /** Drops the remembered answers, so a reset day is never submitted from cache. */
 export const forgetRun = (): void => write({ ref: read().ref });
 
-export function saveRun(
-  ref: Ref,
-  answers: Record<string, string | null>,
-  by: Record<string, string[]>,
-): void {
+export function saveRun(ref: Ref, answers: Record<string, string | null>, by: Record<string, string[]>): void {
   write({ ref, answers, by, computedAt: Date.now() });
 }

@@ -26,10 +26,7 @@ const daysUnder = (dir: string): Ref[] => {
 };
 
 const answersIn = (refs: Ref[]): number =>
-  refs.reduce(
-    (total, ref) => total + PARTS.filter((part) => readMeta(ref)[part].answer !== null).length,
-    0,
-  );
+  refs.reduce((total, ref) => total + PARTS.filter((part) => readMeta(ref)[part].answer !== null).length, 0);
 
 /**
  * What a reset would remove. Only ever a directory under `workspace/puzzles/`,
@@ -49,7 +46,13 @@ export function plan(year: number, day: number | null): Plan {
 
   const dir = yearDir(year);
   const refs = daysUnder(dir);
-  return { what: String(year), dir, days: refs.length, answers: answersIn(refs), confirm: String(year) };
+  return {
+    what: String(year),
+    dir,
+    days: refs.length,
+    answers: answersIn(refs),
+    confirm: String(year),
+  };
 }
 
 const within = (dir: string, file: string): boolean => {

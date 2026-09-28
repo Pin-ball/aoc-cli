@@ -7,7 +7,11 @@ export type Part = "part1" | "part2";
 
 export const PARTS: Part[] = ["part1", "part2"];
 
+export const partName = (part: Part): string => (part === "part1" ? "part 1" : "part 2");
+
 export const SAMPLE_FILE = "sample.txt";
+
+export type Rejection = { answer: string; hint: string | null; at: string | null };
 
 /** Everything known about one part. `null` means "not known, do not check". */
 export type PartRecord = {
@@ -16,7 +20,7 @@ export type PartRecord = {
   /** What adventofcode.com accepted. */
   answer: string | null;
   /** Answers it rejected, so the same one is never sent twice. */
-  wrong: string[];
+  wrong: Rejection[];
   /** When it was accepted. */
   solved: string | null;
   /** Which languages last reproduced it, written by `aoc test`. */

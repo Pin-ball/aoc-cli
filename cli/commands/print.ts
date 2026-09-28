@@ -1,6 +1,7 @@
 import { pad } from "../core/config.ts";
 import type { Ref } from "../core/config.ts";
 import { duration } from "../core/format.ts";
+import { PARTS } from "../core/meta.ts";
 import type { Row } from "../core/solve.ts";
 
 const useColor = !process.env.NO_COLOR && process.stdout.isTTY;
@@ -63,13 +64,15 @@ export function printRows(ref: Ref, rows: Row[], note?: string): void {
   langs.forEach((lang, index) => {
     if (index > 0) console.log();
 
-    for (const [line, row] of rows.filter((row) => row.lang === lang).entries()) {
+    const ofLang = rows.filter((row) => row.lang === lang);
+    const ordered = PARTS.flatMap((part) => ofLang.filter((row) => row.part === part));
+    for (const [line, row] of ordered.entries()) {
       const label = `${(line === 0 ? lang : "").padEnd(columns.lang)}  `;
       const answer = shown(row).padEnd(columns.answer);
 
       console.log(
-        `  ${dim(label)}${MARK[row.status]}  ${dim(row.source.padEnd(columns.source))}` +
-          `  ${dim(row.part === "part1" ? "1" : "2")}   ` +
+        `  ${dim(label)}${MARK[row.status]}  ${dim(row.part === "part1" ? "1" : "2")}` +
+          `  ${dim(row.source.padEnd(columns.source))}   ` +
           `${row.answer === null ? dim(answer) : answer}` +
           `  ${dim((row.status === "pending" ? "…" : duration(row.micros)).padStart(columns.time))}` +
           detail(row),

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { TABS, reduce, refOf, scrollOf } from "../interactive/app.ts";
+import { TABS, focusOf, reduce, refOf, scopeOf, scrollOf } from "../interactive/app.ts";
 import type { Screen, State } from "../interactive/app.ts";
 import type { Key } from "../tui/keys.ts";
 
@@ -12,6 +12,8 @@ const state = (over: Partial<State> = {}): State => ({
   day: 1,
   screen: "calendar",
   tab: "results",
+  mode: "all",
+  focuses: {},
   scrolls: {},
   notice: null,
   overlay: null,
@@ -117,4 +119,37 @@ test("a notice is cleared by the next key, whichever key that is", () => {
   assert.equal(after(told, named("right")).notice, null);
   assert.equal(after(told, char("h")).notice, null);
   assert.equal(after(told, char("h")).overlay, "help");
+});
+
+const answered = (part1: string | null, part2: string | null) =>
+  ({ year: 2024, days: [{ answers: { part1, part2 } }], stars: 0 }) as unknown as State["view"];
+
+test("m cycles what a day runs on, and asks the runner to follow", () => {
+  const day = state({ screen: "day" });
+  const first = reduce(day, char("m"));
+  assert.equal(first.state.mode, "sample");
+  assert.equal(first.effect, "scope");
+  assert.deepEqual(
+    [after(day, char("m"), char("m")).mode, after(day, char("m"), char("m"), char("m")).mode],
+    ["input", "all"],
+  );
+});
+
+test("a day runs the part still to solve, and both once it is done", () => {
+  assert.equal(focusOf(state({ view: answered(null, null) })), "part1");
+  assert.equal(focusOf(state({ view: answered("1", null) })), "part2");
+  assert.equal(focusOf(state({ view: answered("1", "2") })), "both");
+  assert.deepEqual(scopeOf(state({ view: answered("1", null), mode: "sample" })), { mode: "sample", parts: ["part2"] });
+});
+
+test("p cycles the parts from the default, and each day keeps its own", () => {
+  const day = state({ screen: "day", view: answered("1", null) });
+  const first = reduce(day, char("p"));
+  assert.equal(focusOf(first.state), "both");
+  assert.equal(first.effect, "scope");
+  assert.equal(focusOf(after(day, char("p"), char("p"))), "part1");
+
+  const moved = after(day, char("p"), named("right"));
+  assert.equal(focusOf(moved), "both");
+  assert.equal(focusOf(after(moved, named("left"))), "both");
 });

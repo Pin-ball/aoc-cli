@@ -3,10 +3,10 @@ import path from "node:path";
 import type { Ref } from "../../core/config.ts";
 import { present } from "../../core/languages.ts";
 import type { Language } from "../../core/languages.ts";
-import { plannedRows, runDay, settle } from "../../core/solve.ts";
+import { EVERYTHING, plannedRows, runDay, settle } from "../../core/solve.ts";
 import { Abandoned, offloaded } from "./offload.ts";
 import type { Stream } from "./offload.ts";
-import type { Row } from "../../core/solve.ts";
+import type { Row, Scope } from "../../core/solve.ts";
 
 const DEBOUNCE_MS = 60;
 
@@ -17,6 +17,7 @@ const MAX_OUTPUT = 5_000;
 
 export type RunState = {
   ref: Ref;
+  scope: Scope;
   langs: string[];
   rows: Row[];
   /** Whatever the solutions printed, which would otherwise scribble on the screen. */
@@ -33,6 +34,7 @@ export type RunState = {
 export class Runner {
   #onChange: () => void;
   #ref: Ref = { year: 0, day: 0 };
+  #scope: Scope = EVERYTHING;
   #langs: Language[] = [];
   #plan: Row[] = [];
   #rows: Row[] = [];
@@ -52,6 +54,7 @@ export class Runner {
   get state(): RunState {
     return {
       ref: this.#ref,
+      scope: this.#scope,
       langs: this.#langs.map((lang) => lang.id),
       rows: this.#rows,
       output: this.#output,
@@ -61,9 +64,10 @@ export class Runner {
   }
 
   /** Points at a day: runs it, then re-runs on every save until `close`. */
-  open(ref: Ref): void {
+  open(ref: Ref, scope: Scope): void {
     this.close();
     this.#ref = ref;
+    this.#scope = scope;
     this.#langs = present(ref).map((lang) =>
       offloaded(lang, {
         onOutput: (text, stream, source) => this.#capture(lang.id, source, stream, text),
@@ -79,6 +83,12 @@ export class Runner {
     this.start();
   }
 
+  /** Runs the open day again over a new scope, dropping the run in flight. */
+  aim(scope: Scope): void {
+    this.#scope = scope;
+    this.start();
+  }
+
   /** Queues a run of the day already open. */
   start(): void {
     if (this.#langs.length === 0) {
@@ -91,7 +101,7 @@ export class Runner {
     this.#running = new AbortController();
     this.#token += 1;
     const token = this.#token;
-    this.#plan = plannedRows(this.#ref, this.#langs);
+    this.#plan = plannedRows(this.#ref, this.#langs, this.#scope);
     this.#rows = this.#plan;
     this.#error = null;
     this.#output = [];
@@ -113,9 +123,11 @@ export class Runner {
     const ref = this.#ref;
     const plan = this.#plan;
     const langs = this.#langs;
+    const scope = this.#scope;
 
     try {
       const rows = await runDay(ref, langs, {
+        scope,
         onProgress: (partial) => {
           if (token !== this.#token) return;
           this.#rows = settle(plan, partial);

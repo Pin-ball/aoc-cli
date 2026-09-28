@@ -1,7 +1,8 @@
 import type { Surface } from "../../tui/buffer.ts";
 import { box } from "../../tui/box.ts";
 import { PAD, fits } from "./chrome.ts";
-import { readMeta } from "../../core/meta.ts";
+import { partName, readMeta } from "../../core/meta.ts";
+import type { Rejection } from "../../core/meta.ts";
 import { agreedAnswers } from "../../core/solve.ts";
 import { answeredBy } from "../../core/runs.ts";
 import { blockedBeforeRunning, choose, isBlocked } from "../../core/submit.ts";
@@ -35,7 +36,7 @@ function wrapped(text: string, width: number): string[] {
 const REJECTED = 3;
 
 /** The answers AoC has already turned down for the part about to be sent. */
-const rejectedFor = (run: RunState, choice: Choice): string[] =>
+const rejectedFor = (run: RunState, choice: Choice): Rejection[] =>
   isBlocked(choice) ? [] : readMeta(run.ref)[choice.part].wrong.slice(-REJECTED);
 
 function drawRefusal(surface: Surface, why: string): void {
@@ -45,8 +46,8 @@ function drawRefusal(surface: Surface, why: string): void {
   }
 }
 
-function drawOffer(surface: Surface, choice: Candidate, rejected: string[]): void {
-  surface.write(PAD, 1, choice.part === "part1" ? "part 1" : "part 2", THEME.muted);
+function drawOffer(surface: Surface, choice: Candidate, rejected: Rejection[]): void {
+  surface.write(PAD, 1, partName(choice.part), THEME.muted);
   surface.write(PAD, 2, choice.answer, THEME.title);
   surface.write(
     PAD,
@@ -59,8 +60,9 @@ function drawOffer(surface: Surface, choice: Candidate, rejected: string[]): voi
   if (rejected.length > 0) {
     surface.write(PAD, y, "already rejected", THEME.muted);
     y += 1;
-    for (const wrong of rejected) {
-      surface.write(PAD + 2, y, wrong, THEME.bad);
+    for (const { answer, hint } of rejected) {
+      surface.write(PAD + 2, y, answer, THEME.bad);
+      if (hint !== null) surface.write(PAD + 4 + answer.length, y, hint, THEME.faint);
       y += 1;
     }
     y += 1;

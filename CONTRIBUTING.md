@@ -15,6 +15,7 @@ request from there.
 You need the requirements from the README, plus [uv](https://docs.astral.sh/uv/) for Ruff.
 
 ```bash
+cd cli
 npm ci
 npm test
 npm run typecheck

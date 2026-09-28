@@ -58,18 +58,13 @@ def emit(payload: str) -> None:
 
 
 def main() -> None:
+    sys.stdout.reconfigure(line_buffering=True)
     solution_path, input_path = sys.argv[1], sys.argv[2]
+    parts = sys.argv[3].split(",") if len(sys.argv) > 3 else ["part1", "part2"]
     text = Path(input_path).read_text().rstrip()
     module = load(solution_path)
 
-    emit(
-        json.dumps(
-            {
-                "part1": timed(getattr(module, "part1", None), text),
-                "part2": timed(getattr(module, "part2", None), text),
-            }
-        )
-    )
+    emit(json.dumps({part: timed(getattr(module, part, None), text) for part in parts}))
 
 
 if __name__ == "__main__":

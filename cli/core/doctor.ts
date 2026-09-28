@@ -3,8 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import { account } from "./aoc-api.ts";
-import { ROOT } from "./config.ts";
+import { ROOT, shown } from "./config.ts";
 import { settings } from "./env.ts";
+import { PY_VENV, pythonCommand } from "./languages.ts";
 
 export type Status = "ok" | "warn" | "fail";
 export type Check = { label: string; status: Status; note: string };
@@ -20,24 +21,25 @@ export function nodeCheck(version: string): Check {
     : { label: "node", status: "fail", note: `v${version}, needs ${MIN_NODE} or later` };
 }
 
-/** Whether python3 is there and recent enough, as reported by `python3 --version`. */
-export function pythonCheck(reported: string | null): Check {
+/** Whether the py track's interpreter is there and recent enough, as reported by its `--version`. */
+export function pythonCheck(reported: string | null, venv: string | null = null): Check {
   if (reported === null) {
     return {
       label: "python",
       status: "warn",
-      note: "python3 not found, only the py track needs it",
+      note: venv ? `${venv} does not run, recreate it` : "python3 not found, only the py track needs it",
     };
   }
   const [major, minor] = (reported.match(/(\d+)\.(\d+)/)?.slice(1) ?? []).map(Number);
   const recent = major > MIN_PYTHON[0] || (major === MIN_PYTHON[0] && minor >= MIN_PYTHON[1]);
   const version = reported.replace(/^Python\s*/i, "").trim();
+  const from = venv ? `, from ${venv}` : "";
   return recent
-    ? { label: "python", status: "ok", note: version }
+    ? { label: "python", status: "ok", note: `${version}${from}` }
     : {
         label: "python",
         status: "warn",
-        note: `${version}, the py track needs ${MIN_PYTHON.join(".")}`,
+        note: `${version}${from}, the py track needs ${MIN_PYTHON.join(".")}`,
       };
 }
 
@@ -49,9 +51,9 @@ export function pathCheck(found: string | null, here: string): Check {
     : { label: "aoc on PATH", status: "warn", note: `runs another clone: ${found}` };
 }
 
-async function pythonVersion(): Promise<string | null> {
+async function pythonVersion(command: string): Promise<string | null> {
   try {
-    const { stdout, stderr } = await promisify(execFile)("python3", ["--version"]);
+    const { stdout, stderr } = await promisify(execFile)(command, ["--version"]);
     return (stdout || stderr).trim();
   } catch {
     return null;
@@ -90,11 +92,16 @@ async function sessionCheck(): Promise<Check> {
   }
 }
 
+async function interpreterCheck(): Promise<Check> {
+  const command = pythonCommand();
+  return pythonCheck(await pythonVersion(command), command === "python3" ? null : shown(PY_VENV));
+}
+
 /** Everything aoc needs from this machine and this .env, checked in order. */
 export async function diagnose(): Promise<Check[]> {
   return [
     nodeCheck(process.versions.node),
-    pythonCheck(await pythonVersion()),
+    await interpreterCheck(),
     pathCheck(aocOnPath(), fs.realpathSync(path.join(ROOT, "aoc"))),
     agentCheck(),
     await sessionCheck(),

@@ -8,7 +8,10 @@ const REF = { year: 2024, day: 1 };
 const part = (over: Partial<PartRecord> = {}): PartRecord => ({
   sample: "11",
   answer: null,
-  wrong: ["1", "2"],
+  wrong: [
+    { answer: "1", hint: "too low", at: null },
+    { answer: "2", hint: null, at: null },
+  ],
   solved: null,
   verified: { ts: true },
   ...over,
@@ -83,7 +86,7 @@ test("a missing answer is filled in, and nothing else about the record moves", (
   assert.equal(after.part1.answer, "765748");
   assert.equal(after.part2.answer, "27732508");
 
-  assert.deepEqual(after.part1.wrong, ["1", "2"]);
+  assert.deepEqual(after.part1.wrong, before.part1.wrong);
   assert.deepEqual(after.part1.verified, { ts: true });
   assert.equal(after.part1.sample, "11");
   assert.equal(after.part1.solved, null);

@@ -86,7 +86,7 @@ const decode = (html: string): string => html.replace(/&(?:lt|gt|amp|quot|apos|#
 function toMarkdown(html: string): string {
   return decode(
     html
-      .replace(/<h2>(.*?)<\/h2>/gs, "\n## $1\n")
+      .replace(/<h2[^>]*>(.*?)<\/h2>/gs, "\n## $1\n")
       .replace(/<pre><code>(.*?)<\/code><\/pre>/gs, (_, code) => `\n\`\`\`\n${code}\`\`\`\n`)
       .replace(/<li>(.*?)<\/li>/gs, "- $1")
       .replace(/<\/?(?:ul|p)>/g, "\n")
@@ -138,10 +138,11 @@ function rememberSamples(ref: Ref, articles: string[]): void {
 }
 
 /**
- * Fetches the statement. Re-run after solving part 1 to pick up part 2, and
- * writes sample.txt from the first code block when it does not exist yet.
+ * Fetches the statement and returns how many parts the page showed. Re-run
+ * after solving part 1 to pick up part 2, and writes sample.txt from the first
+ * code block when it does not exist yet.
  */
-export async function fetchPuzzle(ref: Ref): Promise<void> {
+export async function fetchPuzzle(ref: Ref): Promise<number> {
   const html = await get(`${BASE}/${ref.year}/day/${ref.day}`);
   const articles = [...html.matchAll(/<article[^>]*>(.*?)<\/article>/gs)].map((m) => m[1]);
   if (articles.length === 0) throw new Error("Could not find the puzzle text.");
@@ -164,13 +165,20 @@ export async function fetchPuzzle(ref: Ref): Promise<void> {
   if (firstBlock && !fs.existsSync(sample)) {
     fs.writeFileSync(sample, `${decode(firstBlock[1].replace(/<[^>]+>/g, "")).replace(/\s+$/, "")}\n`);
   }
+  return articles.length;
 }
 
 export type SubmitVerdict =
   | { kind: "correct" }
-  | { kind: "wrong"; hint: string }
+  | { kind: "wrong"; hint: string | null }
   | { kind: "wait"; message: string }
   | { kind: "unknown"; message: string };
+
+/** What AoC says about a rejected answer, when it says anything. */
+export function hintIn(text: string): string | null {
+  if (text.includes("right answer for someone else")) return "someone else's answer";
+  return text.match(/your answer is (too (?:high|low))/)?.[1] ?? null;
+}
 
 export async function submitAnswer(ref: Ref, level: 1 | 2, answer: string): Promise<SubmitVerdict> {
   const response = await fetch(`${BASE}/${ref.year}/day/${ref.day}/answer`, {
@@ -181,10 +189,7 @@ export async function submitAnswer(ref: Ref, level: 1 | 2, answer: string): Prom
   const text = toMarkdown((await response.text()).match(/<article[^>]*>(.*?)<\/article>/s)?.[1] ?? "");
 
   if (/That's the right answer/i.test(text)) return { kind: "correct" };
-  if (/not the right answer/i.test(text)) {
-    const hint = text.match(/your answer is too (high|low)/i)?.[0] ?? "no hint given";
-    return { kind: "wrong", hint };
-  }
+  if (/not the right answer/i.test(text)) return { kind: "wrong", hint: hintIn(text) };
   if (/answer too recently/i.test(text)) {
     return { kind: "wait", message: text.match(/You have (.*?) left to wait/)?.[0] ?? text };
   }

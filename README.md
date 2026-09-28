@@ -89,6 +89,8 @@ The calendar opens on every year Advent of Code has run. <kbd>n</kbd> fetches a
 day, <kbd>⏎</kbd> opens it, and it re-runs every time you save.
 
 - <kbd>s</kbd> submit, after it shows you what it would send
+- <kbd>p</kbd> run part 1, part 2 or both; it starts on the part still to solve
+- <kbd>m</kbd> run on the sample and the input, the sample alone, or the input alone
 - <kbd>r</kbd> re-check a whole year against its recorded answers
 - <kbd>⇥</kbd> switch tabs: results, output, history
 - <kbd>h</kbd> every other key
@@ -113,34 +115,59 @@ given `-y`, and never overwrites an answer already recorded.
 
 <br/>
 
-## ✏️ Writing a solution
+## ✏️ Solving puzzles
+
+### 🧩 Writing a solution
 
 Export two functions. Return `null` / `None` for a part you have not written
 yet; answers are compared as trimmed strings, so an `int` and a `Number` match.
 
 ```ts
-// workspace/solutions/ts/2025/day05/index.ts
+// workspace/solutions/ts/src/2025/day05/index.ts
 export const part1 = (input: string) => 0;
 export const part2 = (input: string) => 0;
 ```
 
 ```python
-# workspace/solutions/py/2025/day05/__init__.py
+# workspace/solutions/py/src/2025/day05/__init__.py
 def part1(input: str): ...
 def part2(input: str): ...
 ```
 
-Shared helpers go in `workspace/solutions/<lang>/lib/`, imported as
+Shared helpers go in `workspace/solutions/<lang>/src/lib/`, imported as
 `../../lib/index.ts` or `from lib import ...`.
+
+### 📚 Using libraries
+
+Each language folder is a project of its own, so libraries install there and
+never touch `cli/`.
+
+```bash
+cd workspace/solutions/ts && npm install lodash-es
+cd workspace/solutions/py && uv init --bare && uv add networkx
+```
+
+`aoc` runs Python from `workspace/solutions/py/.venv` when it exists, with no
+need to activate it, and `aoc doctor` says which interpreter it found. Plain
+`python -m venv .venv` and `pip install` work just as well as uv.
+
+After a fresh clone, `npm ci` and `uv sync` in those folders bring the same
+versions back.
+
+> Node does not strip types inside `node_modules`. The rare package that
+> publishes only `.ts` sources fails with `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`;
+> almost every package ships JavaScript.
 
 <br/>
 
 ## 📂 What gets committed
 
 ```
-workspace/solutions/     your code                          # committed
-workspace/puzzles/       puzzle.md  sample.txt  input.txt   # gitignored
-                         meta.json                          # committed
+workspace/solutions/     <lang>/src/  your code                   # committed
+                         package.json  pyproject.toml  locks      # committed
+                         node_modules/  .venv/                    # gitignored
+workspace/puzzles/       puzzle.md  sample.txt  input.txt         # gitignored
+                         meta.json                                # committed
 ```
 
 [AGENTS.md](AGENTS.md) sets what an AI assistant may do here.
@@ -151,12 +178,13 @@ workspace/puzzles/       puzzle.md  sample.txt  input.txt   # gitignored
 
 Only needed to change `cli/` itself: solving puzzles never touches this.
 
-The tooling is dev dependencies, so `aoc` itself still runs without them.
+The tooling lives in `cli/`, as dev dependencies, so `aoc` itself still runs without them.
 TypeScript checks the types, [Biome](https://biomejs.dev) lints the TypeScript
 and [Ruff](https://docs.astral.sh/ruff/) the Python. Ruff runs through
 [uv](https://docs.astral.sh/uv/), which is the one thing to install for it.
 
 ```bash
+cd cli
 npm ci             # TypeScript and Biome, once
 npm test           # the test suite
 npm run typecheck  # the types

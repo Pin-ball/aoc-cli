@@ -80,7 +80,7 @@ export class Tester {
       const langs = present(ref).map((lang) => offloaded(lang, { signal: () => signal }));
 
       try {
-        const rows = await runDay(ref, langs, { scope: INPUT_ONLY });
+        const rows = await runDay(ref, langs, { scope: INPUT_ONLY, signal });
         if (signal.aborted) return;
         recordVerified(ref, rows);
 

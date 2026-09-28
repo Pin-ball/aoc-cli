@@ -4,7 +4,7 @@ import { dataDir } from "./config.ts";
 import type { Ref } from "./config.ts";
 import { PARTS, readMeta, same, SAMPLE_FILE } from "./meta.ts";
 import type { Meta, Part } from "./meta.ts";
-import type { DayResult, Language } from "./languages.ts";
+import type { Language } from "./languages.ts";
 
 export type RunMode = "sample" | "all" | "input";
 
@@ -30,84 +30,67 @@ export type Row = {
 };
 
 /** A throw in one place must not cost you the results from everywhere else. */
-async function attempt(lang: Language, ref: Ref, run: Run): Promise<Row[]> {
-  const { source, file, parts, expected } = run;
+async function attempt(lang: Language, ref: Ref, { source, file, part, expected }: Run): Promise<Row> {
   try {
-    return rowsFor(lang, source, await lang.solve(ref, file, parts), parts, expected);
-  } catch (error) {
-    const note = (error as Error).message.split("\n")[0];
-    return parts.map((part) => ({
-      lang: lang.id,
-      source,
-      part,
-      answer: null,
-      expected: expected[part],
-      micros: 0,
-      status: "error" as Status,
-      note,
-    }));
-  }
-}
-
-function rowsFor(
-  lang: Language,
-  source: string,
-  result: DayResult,
-  parts: Part[],
-  expected: Record<Part, string | null>,
-): Row[] {
-  return parts.map((part) => {
-    const { answer, micros, error } = result[part] ?? { answer: null, micros: 0 };
-    const want = expected[part];
+    const { answer, micros, error } = (await lang.solve(ref, file, [part]))[part] ?? { answer: null, micros: 0 };
     const status: Status = error
       ? "error"
       : answer === null
         ? "skipped"
-        : want === null
+        : expected === null
           ? "unknown"
-          : same(answer, want)
+          : same(answer, expected)
             ? "ok"
             : "fail";
-    return { lang: lang.id, source, part, answer, expected: want, micros, status, note: error };
-  });
+    return { lang: lang.id, source, part, answer, expected, micros, status, note: error };
+  } catch (error) {
+    const note = (error as Error).message.split("\n")[0];
+    return { lang: lang.id, source, part, answer: null, expected, micros: 0, status: "error", note };
+  }
 }
 
-type Run = { source: string; file: string; parts: Part[]; expected: Record<Part, string | null> };
+type Run = { source: string; file: string; part: Part; expected: string | null };
 
 function runsFor(ref: Ref, meta: Meta, { mode, parts }: Scope): Run[] {
   const dir = dataDir(ref);
   const sample = path.join(dir, SAMPLE_FILE);
   const input = path.join(dir, "input.txt");
-  const runs: Run[] = [];
+  const sources: { source: string; file: string; expect: (part: Part) => string | null }[] = [];
 
   if (mode !== "input" && fs.existsSync(sample)) {
-    const expected = { part1: meta.part1.sample, part2: meta.part2.sample };
-    runs.push({ source: "sample", file: sample, parts, expected });
+    sources.push({ source: "sample", file: sample, expect: (part) => meta[part].sample });
   }
   if (mode !== "sample" && fs.existsSync(input)) {
-    const expected = { part1: meta.part1.answer, part2: meta.part2.answer };
-    runs.push({ source: "input", file: input, parts, expected });
+    sources.push({ source: "input", file: input, expect: (part) => meta[part].answer });
   }
-  return runs;
+  return parts.flatMap((part) =>
+    sources.map(({ source, file, expect }) => ({ source, file, part, expected: expect(part) })),
+  );
 }
 
 /**
- * Runs the samples then the real input, as far as the scope allows. Pure:
- * callers decide what to remember, so `aoc test` can loop over days without
- * repointing what `aoc submit` would send.
+ * Runs each part on the sample then the real input, as far as the scope
+ * allows, and stops once `signal` is aborted. Pure: callers decide what to
+ * remember, so `aoc test` can loop over days without repointing what
+ * `aoc submit` would send.
  */
 export async function runDay(
   ref: Ref,
   langs: Language[],
-  { scope = EVERYTHING, onProgress }: { scope?: Scope; onProgress?: (rows: Row[]) => void } = {},
+  {
+    scope = EVERYTHING,
+    signal,
+    onProgress,
+  }: { scope?: Scope; signal?: AbortSignal; onProgress?: (rows: Row[]) => void } = {},
 ): Promise<Row[]> {
   const runs = runsFor(ref, readMeta(ref), scope);
   const rows: Row[] = [];
 
-  for (const lang of langs) {
-    for (const run of runs) {
+  for (const run of runs) {
+    for (const lang of langs) {
+      if (signal?.aborted) return rows;
       onProgress?.(rows);
-      rows.push(...(await attempt(lang, ref, run)));
+      rows.push(await attempt(lang, ref, run));
     }
   }
   return rows;
@@ -120,17 +103,15 @@ export async function runDay(
 export function plannedRows(ref: Ref, langs: Language[], scope: Scope = EVERYTHING): Row[] {
   const runs = runsFor(ref, readMeta(ref), scope);
   return langs.flatMap((lang) =>
-    runs.flatMap(({ source, parts }) =>
-      parts.map((part) => ({
-        lang: lang.id,
-        source,
-        part,
-        answer: null,
-        expected: null,
-        micros: 0,
-        status: "pending" as Status,
-      })),
-    ),
+    runs.map(({ source, part }) => ({
+      lang: lang.id,
+      source,
+      part,
+      answer: null,
+      expected: null,
+      micros: 0,
+      status: "pending" as Status,
+    })),
   );
 }
 

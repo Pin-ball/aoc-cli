@@ -8,7 +8,7 @@ import type { Language } from "../core/languages.ts";
 import { elapsed } from "../core/format.ts";
 import { PARTS, readMeta, writeMeta } from "../core/meta.ts";
 import type { Part } from "../core/meta.ts";
-import { blockedBeforeRunning, choose, isBlocked, send } from "../core/submit.ts";
+import { blockedBeforeRunning, choose, isBlocked, rejectedNote, send } from "../core/submit.ts";
 import { apply, plan } from "../core/reset.ts";
 import { diagnose } from "../core/doctor.ts";
 import { completeYear, syncYear } from "../core/sync.ts";
@@ -31,7 +31,7 @@ import {
   yearTitle,
 } from "./print.ts";
 import { confirm, openInBrowser } from "../core/shell.ts";
-import { agreedAnswers, runDay } from "../core/solve.ts";
+import { INPUT_ONLY, agreedAnswers, runDay } from "../core/solve.ts";
 import { lastRun, saveLastRef, saveRun } from "../core/state.ts";
 import { prepare, years } from "../core/workspace.ts";
 import { answeredBy, changedSince, recordVerified } from "../core/runs.ts";
@@ -160,7 +160,7 @@ async function cmdTest(tokens: string[]): Promise<void> {
       continue;
     }
 
-    const rows = await runDay(day, targets, { samples: false });
+    const rows = await runDay(day, targets, { scope: INPUT_ONLY });
     if (rows.length === 0) {
       tally.skipped += 1;
       continue;
@@ -215,7 +215,7 @@ async function submitFor(ref: Ref, langs: Language[], forced?: Part): Promise<vo
     working("solving");
     const targets = resolveLangs(ref, langs);
     await fetchInput(ref).catch(() => undefined);
-    const rows = await runDay(ref, targets, { samples: false });
+    const rows = await runDay(ref, targets, { scope: INPUT_ONLY });
     computed = agreedAnswers(rows);
     credited = answeredBy(rows);
     recordVerified(ref, rows);
@@ -232,10 +232,13 @@ async function submitFor(ref: Ref, langs: Language[], forced?: Part): Promise<vo
     const meta = readMeta(ref);
     const took = elapsed(meta.started, meta[choice.part].solved);
     done(`correct: ${choice.answer}`, took ?? undefined);
+    if (verdict.partTwoMissing) {
+      step(`${verdict.partTwoMissing}. Run: aoc sync -y ${ref.year}`);
+    }
     return;
   }
   if (verdict.kind === "wrong") {
-    failed(`wrong (${verdict.hint}), recorded so it will not be resent`);
+    failed(rejectedNote(verdict.hint));
     process.exitCode = 1;
     return;
   }

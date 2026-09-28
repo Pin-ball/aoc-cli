@@ -1,7 +1,7 @@
 import type { Surface } from "../../tui/buffer.ts";
 import type { Ref } from "../../core/config.ts";
 import { elapsed } from "../../core/format.ts";
-import { PARTS, readMeta } from "../../core/meta.ts";
+import { PARTS, partName, readMeta } from "../../core/meta.ts";
 import { PAD } from "./chrome.ts";
 import { THEME } from "./theme.ts";
 
@@ -12,7 +12,7 @@ export type Moment = {
   at: string | null;
   what: string;
   detail: string;
-  took: string | null;
+  aside: string | null;
   isStar: boolean;
 };
 
@@ -27,7 +27,7 @@ const moment = (at: string | null, what: string, detail: string, extra: Partial<
   at,
   what,
   detail,
-  took: null,
+  aside: null,
   isStar: false,
   ...extra,
 });
@@ -42,19 +42,21 @@ export function momentsOf(ref: Ref): Moment[] {
 
   if (meta.started !== null) moments.push(moment(meta.started, "fetched", ""));
 
-  for (const [index, part] of PARTS.entries()) {
+  for (const part of PARTS) {
     const record = meta[part];
-    const name = `part ${index + 1}`;
+    const name = partName(part);
 
     if (record.answer !== null) {
       moments.push(
         moment(record.solved, `${name} accepted`, record.answer, {
-          took: elapsed(meta.started, record.solved),
+          aside: elapsed(meta.started, record.solved),
           isStar: true,
         }),
       );
     }
-    for (const wrong of record.wrong) moments.push(moment(null, `${name} rejected`, wrong));
+    for (const { answer, hint, at } of record.wrong) {
+      moments.push(moment(at, `${name} rejected`, answer, { aside: hint }));
+    }
 
     const langs = Object.keys(record.verified).filter((lang) => record.verified[lang]);
     if (langs.length > 0) moments.push(moment(null, `${name} reproduced`, langs.join(", ")));
@@ -87,6 +89,6 @@ export function drawHistory(surface: Surface, ref: Ref, scroll: number): void {
     surface.write(PAD, index, stamp(moment.at), THEME.faint);
     surface.write(WHAT, index, moment.what, moment.isStar ? THEME.star : THEME.muted);
     surface.write(DETAIL, index, moment.detail.slice(0, Math.max(0, surface.width - DETAIL - 10)), THEME.text);
-    if (moment.took !== null) surface.writeRight(index, `${moment.took}  `, THEME.faint);
+    if (moment.aside !== null) surface.writeRight(index, `${moment.aside}  `, THEME.faint);
   }
 }

@@ -58,7 +58,7 @@ export function choose(
   if (record.answer !== null) {
     return { why: `${where(ref)} ${part} is already solved (${record.answer}).` };
   }
-  if (record.wrong.includes(answer)) {
+  if (record.wrong.some((rejected) => rejected.answer === answer)) {
     return { why: `${answer} was already rejected for ${where(ref)} ${part}.` };
   }
   // AoC answers are a single token. Anything else means the solution returned
@@ -70,8 +70,32 @@ export function choose(
   return { part, answer, langs: credited[part] ?? [] };
 }
 
+/** A verdict, and why part 2 is missing when it did not arrive with it. */
+export type Sent = SubmitVerdict & { partTwoMissing?: string };
+
+const RETRY_MS = 2000;
+
+/** Fetches part 2 after part 1 is accepted, once more if the page lags behind, and says why when it never shows. */
+export async function partTwoAfter(
+  fetchParts: () => Promise<number>,
+  pause: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+): Promise<string | null> {
+  try {
+    if ((await fetchParts()) > 1) return null;
+    await pause(RETRY_MS);
+    if ((await fetchParts()) > 1) return null;
+    return "part 2 is not on the page yet";
+  } catch (error) {
+    return `part 2 could not be fetched: ${(error as Error).message.split("\n")[0]}`;
+  }
+}
+
+/** What to tell someone whose answer was just rejected. */
+export const rejectedNote = (hint: string | null): string =>
+  `wrong${hint ? ` (${hint})` : ""}, recorded so it will not be resent`;
+
 /** Sends an answer and records the verdict. The only place a submission is written down. */
-export async function send(ref: Ref, candidate: Candidate): Promise<SubmitVerdict> {
+export async function send(ref: Ref, candidate: Candidate): Promise<Sent> {
   const { part, answer, langs } = candidate;
   const level = part === "part1" ? 1 : 2;
   const verdict = await submitAnswer(ref, level, answer);
@@ -85,12 +109,12 @@ export async function send(ref: Ref, candidate: Candidate): Promise<SubmitVerdic
     // The languages that produced it have now been proved right by AoC itself.
     for (const lang of langs) record.verified[lang] = true;
     writeMeta(ref, meta);
-    if (level === 1) await fetchPuzzle(ref);
-    return verdict;
+    const partTwoMissing = level === 1 ? await partTwoAfter(() => fetchPuzzle(ref)) : null;
+    return partTwoMissing ? { ...verdict, partTwoMissing } : verdict;
   }
 
   if (verdict.kind === "wrong") {
-    record.wrong.push(answer);
+    record.wrong.push({ answer, hint: verdict.hint, at: new Date().toISOString() });
     writeMeta(ref, meta);
   }
   return verdict;

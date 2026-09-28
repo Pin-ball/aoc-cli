@@ -1,6 +1,6 @@
-import { currentYear, pad, shown } from "../core/config.ts";
+import { currentYear, pad } from "../core/config.ts";
 import type { Ref } from "../core/config.ts";
-import { byId, present, strayFlatFiles } from "../core/languages.ts";
+import { byId, present } from "../core/languages.ts";
 import type { Language } from "../core/languages.ts";
 import { lastRef } from "../core/state.ts";
 
@@ -76,13 +76,6 @@ export function resolveLangs(ref: Ref, chosen: Language[]): Language[] {
   }
 
   if (found.length > 0) return found;
-
-  const strays = strayFlatFiles(ref);
-  if (strays.length > 0) {
-    throw new Error(
-      `A day is a folder now. Move ${strays.map(shown).join(", ")} ` + `into day${pad(ref.day)}/ as the entry point.`,
-    );
-  }
 
   throw new Error(`No solution yet for ${ref.year} day ${pad(ref.day)}. Run: aoc new -y ${ref.year} -d ${ref.day} ts`);
 }

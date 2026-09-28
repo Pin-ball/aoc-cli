@@ -2,6 +2,8 @@ import type { Surface } from "../../tui/buffer.ts";
 import { shown } from "../../core/config.ts";
 import { byId } from "../../core/languages.ts";
 import { duration } from "../../core/format.ts";
+import { partName } from "../../core/meta.ts";
+import type { Part } from "../../core/meta.ts";
 import type { Row, Status } from "../../core/solve.ts";
 import type { Style } from "../../tui/style.ts";
 import type { DayView } from "../data.ts";
@@ -9,10 +11,10 @@ import type { RunState } from "../run/runner.ts";
 import { PAD } from "./chrome.ts";
 import { LANG_STYLE, THEME } from "./theme.ts";
 
-const SOURCE = 9;
-const PART = 17;
-const STATUS = 20;
-const ANSWER = 23;
+const PART = 9;
+const SOURCE = 17;
+const STATUS = 25;
+const ANSWER = 28;
 
 /** A glyph for each of the six statuses `cli/core/solve.ts` can produce. */
 const MARK: Record<Status, { glyph: string; style: Style }> = {
@@ -24,18 +26,18 @@ const MARK: Record<Status, { glyph: string; style: Style }> = {
   pending: { glyph: "·", style: THEME.faint },
 };
 
-const bySource = (rows: Row[]): Map<string, Row[]> => {
-  const groups = new Map<string, Row[]>();
-  for (const row of rows) groups.set(row.source, [...(groups.get(row.source) ?? []), row]);
+const byPart = (rows: Row[]): Map<Part, Row[]> => {
+  const groups = new Map<Part, Row[]>();
+  for (const row of rows) groups.set(row.part, [...(groups.get(row.part) ?? []), row]);
   return groups;
 };
 
 const languagesIn = (rows: Row[]): string[] => [...new Set(rows.map((row) => row.lang))];
 
-/** The lines a table takes: its rows, the gaps between sources, the rules between languages. */
+/** The lines a table takes: its rows, the gaps between parts, the rules between languages. */
 export function heightOf(rows: Row[]): number {
   const gaps = languagesIn(rows).reduce(
-    (total, lang) => total + bySource(rows.filter((row) => row.lang === lang)).size - 1,
+    (total, lang) => total + byPart(rows.filter((row) => row.lang === lang)).size - 1,
     0,
   );
   return rows.length + gaps + Math.max(0, languagesIn(rows).length - 1) * 3;
@@ -63,7 +65,7 @@ const markFor = (row: Row): { glyph: string; style: Style } =>
 
 function drawRow(surface: Surface, y: number, row: Row): void {
   const mark = markFor(row);
-  surface.write(PART, y, row.part === "part1" ? "1" : "2", THEME.muted);
+  surface.write(SOURCE, y, row.source, THEME.muted);
   surface.write(STATUS, y, mark.glyph, mark.style);
 
   const trail = trailing(row);
@@ -83,13 +85,13 @@ function drawTable(surface: Surface, rows: Row[]): void {
     }
 
     let isFirstRow = true;
-    for (const [source, group] of bySource(rows.filter((row) => row.lang === lang))) {
+    for (const [part, group] of byPart(rows.filter((row) => row.lang === lang))) {
       if (!isFirstRow) y += 1;
 
       for (const [index, row] of group.entries()) {
         if (y >= surface.height) return;
         if (isFirstRow) surface.write(PAD, y, lang, LANG_STYLE[lang] ?? THEME.text);
-        if (index === 0) surface.write(SOURCE, y, source, THEME.muted);
+        if (index === 0) surface.write(PART, y, partName(part), THEME.muted);
         isFirstRow = false;
         drawRow(surface, y, row);
         y += 1;
@@ -112,6 +114,10 @@ function drawEmpty(surface: Surface, day: DayView, run: RunState): void {
     say("not fetched", "fetch the puzzle, the input and a file to write in", true);
   } else if (run.langs.length === 0) {
     say("nothing written yet", `start ${shown(byId("ts").solutionPath(run.ref))}`, true);
+  } else if (run.scope.mode === "sample") {
+    say("nothing to run on the sample", "sample.txt is missing");
+  } else if (run.scope.mode === "input") {
+    say("nothing to run on the input", "input.txt is missing, n fetches it");
   } else {
     say("nothing to run", "this day has neither a sample nor an input", false);
   }

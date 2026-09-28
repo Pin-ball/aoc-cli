@@ -74,6 +74,8 @@ const DAY: Sheet = {
       title: "act",
       entries: [
         { key: "r", what: "run again" },
+        { key: "p", what: "which parts" },
+        { key: "m", what: "which inputs" },
         { key: "s", what: "submit" },
         { key: "n", what: "fetch this day" },
         { key: "o", what: "open on the site" },

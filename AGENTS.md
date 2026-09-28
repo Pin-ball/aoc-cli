@@ -63,15 +63,19 @@ not an essay around it.
 
 `README.md` has the commands. Beyond that:
 
-- Every day is a folder: `workspace/solutions/<lang>/<year>/dayNN/` with
+- Every day is a folder: `workspace/solutions/<lang>/src/<year>/dayNN/` with
   `index.ts` or `__init__.py` as the entry point, helpers beside it.
+- Libraries a solution needs go in `workspace/solutions/<lang>/`, its
+  `package.json` or `pyproject.toml`. Never in `cli/package.json`.
 - Verify with `./aoc run -y <year> -d <day>`, never by reasoning about code alone.
   Samples run before the real input; expected answers come from `meta.json`.
+  In the interactive view, `p` picks the parts and `m` the inputs.
 - Node strips types, it does not compile them: no parameter properties
   (`constructor(private x)`), no enums, no namespaces. Declare fields
   explicitly.
 - `cli/core/` holds logic and must not import from anything above it.
-- After changing `cli/`, run `npm test`, `npm run typecheck` and `npm run lint`.
+- After changing `cli/`, run `npm test`, `npm run typecheck` and `npm run lint`
+  from inside `cli/`.
 
 ### Never, in either half
 

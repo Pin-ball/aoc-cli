@@ -7,8 +7,8 @@ import { byId } from "../core/languages.ts";
 import { readMeta, writeMeta } from "../core/meta.ts";
 import { openInBrowser } from "../core/shell.ts";
 import { saveLastRef } from "../core/state.ts";
-import { isBlocked, send } from "../core/submit.ts";
-import { clampScroll, initial, reduce, refOf, refresh, scrollOf } from "./app.ts";
+import { isBlocked, rejectedNote, send } from "../core/submit.ts";
+import { clampScroll, initial, reduce, refOf, refresh, scopeOf, scrollOf } from "./app.ts";
 import type { Effect, State } from "./app.ts";
 import { drawCalendar } from "./draw/calendar.ts";
 import { drawDay, scrollLimit } from "./draw/day.ts";
@@ -57,10 +57,12 @@ async function submitDay(): Promise<void> {
   try {
     const verdict = await send(run.ref, choice);
     state = refresh(state);
-    if (verdict.kind === "correct") say(`correct: ${choice.answer}`);
-    else if (verdict.kind === "wrong") say(`wrong (${verdict.hint}), recorded so it will not be resent`);
+    if (verdict.kind === "correct") {
+      const missing = verdict.partTwoMissing ? `, but ${verdict.partTwoMissing}. Press n to fetch it` : "";
+      say(`correct: ${choice.answer}${missing}`);
+    } else if (verdict.kind === "wrong") say(rejectedNote(verdict.hint));
     else say(verdict.message);
-    runner.open(run.ref);
+    runner.open(run.ref, scopeOf(state));
   } catch (error) {
     say((error as Error).message.split("\n")[0]);
   }
@@ -87,7 +89,7 @@ async function fetchDay(): Promise<void> {
     byId("ts").scaffold(ref);
 
     state = refresh(state);
-    if (state.screen === "day") runner.open(ref);
+    if (state.screen === "day") runner.open(ref, scopeOf(state));
     say(null);
   } catch (error) {
     say((error as Error).message.split("\n")[0]);
@@ -96,6 +98,7 @@ async function fetchDay(): Promise<void> {
 
 function perform(effect: Effect): void {
   if (effect === "rerun") runner.start();
+  if (effect === "scope") runner.aim(scopeOf(state));
   if (effect === "browse") openInBrowser(puzzleUrl(refOf(state)));
   if (effect === "fetch") void fetchDay();
   if (effect === "submit") void submitDay();
@@ -108,7 +111,7 @@ const sameDay = (a: Ref, b: Ref): boolean => a.year === b.year && a.day === b.da
 function follow(before: State, after: State): void {
   const opened = after.screen === "day" && before.screen !== "day";
   if (opened || (after.screen === "day" && !sameDay(refOf(before), refOf(after)))) {
-    runner.open(refOf(after));
+    runner.open(refOf(after), scopeOf(after));
     saveLastRef(refOf(after));
   }
   if (after.screen !== "day" && before.screen === "day") runner.close();

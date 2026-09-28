@@ -7,11 +7,11 @@
     "node": ">=24"
   },
   "scripts": {
-    "aoc": "node cli/commands/index.ts",
-    "test": "node --test \"cli/tests/*.test.ts\"",
+    "aoc": "node commands/index.ts",
+    "test": "node --test \"tests/*.test.ts\"",
     "typecheck": "tsc",
-    "lint": "biome check && uvx ruff@0.16.9 check cli && uvx ruff@0.16.9 format --check cli",
-    "format": "biome check --write && uvx ruff@0.16.9 format cli"
+    "lint": "biome check && uvx ruff@0.16.9 check && uvx ruff@0.16.9 format --check",
+    "format": "biome check --write && uvx ruff@0.16.9 format"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

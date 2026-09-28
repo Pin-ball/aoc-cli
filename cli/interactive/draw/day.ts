@@ -10,6 +10,8 @@ import { drawHistory, momentsOf } from "./history.ts";
 import { drawOutput, rowCount } from "./output.ts";
 import { drawResults, heightOf } from "./results.ts";
 import type { RunState } from "../run/runner.ts";
+import { partName } from "../../core/meta.ts";
+import type { RunMode, Scope } from "../../core/solve.ts";
 import { THEME } from "./theme.ts";
 
 const SPINNER = "⣾⣽⣻⢿⡿⣟⣯⣷";
@@ -29,7 +31,13 @@ const AROUND = CHROME_ROWS + 2 + HEAD + 1;
 /** How many lines of a scrolling pane fit, for clamping a scroll before it is drawn. */
 const paneRows = (height: number): number => Math.max(1, height - AROUND);
 
+const MODE_LABEL: Record<RunMode, string> = { sample: "sample", all: "sample + input", input: "input" };
+
+const scopeLabel = ({ parts, mode }: Scope): string =>
+  `${parts.length > 1 ? "parts 1+2" : partName(parts[0])} · ${MODE_LABEL[mode]}`;
+
 const status = (run: RunState, tick: number): Span[] => [
+  { text: `${scopeLabel(run.scope)} · `, style: THEME.muted },
   run.isRunning
     ? { text: `${SPINNER[tick % SPINNER.length]} running`, style: THEME.muted }
     : { text: "watching", style: THEME.faint },
@@ -117,9 +125,9 @@ export function drawDay(
     [
       { key: "←→", label: "day" },
       { key: "⇥", label: "tab" },
-      { key: "r", label: "run" },
+      { key: "p", label: "parts" },
+      { key: "m", label: "inputs" },
       { key: "s", label: "submit" },
-      { key: "esc", label: "back" },
       { key: "h", label: "help" },
     ],
     notice,

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { sampleAnswer } from "../core/aoc-api.ts";
+import { hintIn, sampleAnswer } from "../core/aoc-api.ts";
 
 test("takes the value set in both code and emphasis", () => {
   assert.equal(sampleAnswer("the similarity score is `**31**` (`9 + 4`)."), "31");
@@ -30,4 +30,14 @@ test("refuses anything that is not answer-shaped", () => {
 test("emphasis inside a longer code span is input, not an answer", () => {
   assert.equal(sampleAnswer("In `**81111111111**111**9**`, turn on everything"), null);
   assert.equal(sampleAnswer("In `**8**1**8**1`, then the total is `**42**`."), "42");
+});
+
+test("a rejection keeps what AoC said about it, and only that", () => {
+  assert.equal(hintIn("That's not the right answer; your answer is too high. If you're stuck, ..."), "too high");
+  assert.equal(hintIn("That's not the right answer; your answer is too low."), "too low");
+  assert.equal(
+    hintIn("That's not the right answer. Curiously, it's the right answer for someone else; you might be..."),
+    "someone else's answer",
+  );
+  assert.equal(hintIn("That's not the right answer. If you're stuck, make sure you're using the full input"), null);
 });

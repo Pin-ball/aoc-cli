@@ -3,9 +3,10 @@ import { spawn } from "node:child_process";
 import { Worker } from "node:worker_threads";
 import { fileURLToPath } from "node:url";
 import { ROOT } from "../../core/config.ts";
-import { SAMPLE_FILE } from "../../core/meta.ts";
 import type { Ref } from "../../core/config.ts";
-import { pipesOf } from "../../core/languages.ts";
+import { PARTS, SAMPLE_FILE } from "../../core/meta.ts";
+import type { Part } from "../../core/meta.ts";
+import { pipesOf, pythonCommand } from "../../core/languages.ts";
 import type { DayResult, Language } from "../../core/languages.ts";
 
 const WORKER = path.join(path.dirname(fileURLToPath(import.meta.url)), "worker.ts");
@@ -23,7 +24,10 @@ export type Offload = {
   signal?: () => AbortSignal | undefined;
 };
 
-type Options = { onOutput?: Sink; signal?: AbortSignal };
+type Options = { parts: Part[]; onOutput?: Sink; signal?: AbortSignal };
+
+/** What the worker posts: each write as it happens, then the result. */
+type Said = { kind: "output"; stream: Stream; text: string } | { kind: "result"; result: DayResult };
 
 export class Abandoned extends Error {
   constructor() {
@@ -60,12 +64,12 @@ function workerFlags(): string[] | undefined {
  * Runs a TypeScript solution on a worker thread. In-process it would block the
  * event loop for its whole duration, freezing the screen and the keyboard.
  */
-function onWorker(solution: string, input: string, { onOutput, signal }: Options = {}) {
+function onWorker(solution: string, input: string, { parts, onOutput, signal }: Options) {
   if (signal?.aborted) return Promise.reject(new Abandoned());
 
   return new Promise<DayResult>((resolve, reject) => {
     const worker = new Worker(WORKER, {
-      workerData: { solution, input },
+      workerData: { solution, input, parts },
       execArgv: workerFlags(),
       stdout: true,
       stderr: true,
@@ -81,14 +85,14 @@ function onWorker(solution: string, input: string, { onOutput, signal }: Options
     let failure = "";
     const out = lineReader((line) => onOutput?.(line, "stdout"));
     const err = lineReader((line) => onOutput?.(line, "stderr"));
-    worker.stdout.on("data", (chunk) => out.push(String(chunk)));
-    worker.stderr.on("data", (chunk) => {
-      failure += chunk;
-      err.push(String(chunk));
-    });
 
-    worker.on("message", (message: DayResult) => {
-      result = message;
+    worker.on("message", (message: Said) => {
+      if (message.kind === "result") result = message.result;
+      else if (message.stream === "stdout") out.push(message.text);
+      else {
+        failure += message.text;
+        err.push(message.text);
+      }
     });
     worker.on("error", reject);
     worker.on("exit", (code) => {
@@ -108,11 +112,12 @@ function onWorker(solution: string, input: string, { onOutput, signal }: Options
  * so every line of stdout is the day's own and none of it can be mistaken for
  * the result.
  */
-function onProcess(solution: string, input: string, { onOutput, signal }: Options = {}) {
+function onProcess(solution: string, input: string, { parts, onOutput, signal }: Options) {
   if (signal?.aborted) return Promise.reject(new Abandoned());
 
   return new Promise<DayResult>((resolve, reject) => {
-    const child = spawn("python3", [PY_DRIVER, solution, input], {
+    const python = pythonCommand();
+    const child = spawn(python, [PY_DRIVER, solution, input, parts.join(",")], {
       cwd: ROOT,
       stdio: ["ignore", "pipe", "pipe", "pipe"],
     });
@@ -139,7 +144,7 @@ function onProcess(solution: string, input: string, { onOutput, signal }: Option
     });
 
     child.on("error", (error) =>
-      reject(new Error(`python3 could not be started. Is it installed? (${error.message})`)),
+      reject(new Error(`${python} could not be started. Is it installed? (${error.message})`)),
     );
     child.on("close", (code) => {
       signal?.removeEventListener("abort", abandon);
@@ -151,7 +156,7 @@ function onProcess(solution: string, input: string, { onOutput, signal }: Option
         .split("\n")
         .findLast((l) => l.startsWith("{"));
       if (line === undefined) {
-        reject(new Error(failure.trim().split("\n").at(-1) ?? `python3 exited ${code}`));
+        reject(new Error(failure.trim().split("\n").at(-1) ?? `${python} exited ${code}`));
         return;
       }
       resolve(JSON.parse(line));
@@ -166,9 +171,10 @@ export function offloaded(lang: Language, { onOutput, signal }: Offload = {}): L
 
   return {
     ...lang,
-    solve: (ref: Ref, input: string) => {
+    solve: (ref: Ref, input: string, parts: Part[] = PARTS) => {
       const source = input.endsWith(SAMPLE_FILE) ? "sample" : "input";
       return run(lang.solutionPath(ref), input, {
+        parts,
         onOutput: onOutput && ((line, stream) => onOutput(line, stream, source)),
         signal: signal?.(),
       });

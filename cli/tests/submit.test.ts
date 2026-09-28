@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { blockedBeforeRunning, choose, isBlocked } from "../core/submit.ts";
+import { blockedBeforeRunning, choose, isBlocked, partTwoAfter } from "../core/submit.ts";
 import type { Choice } from "../core/submit.ts";
 import type { Meta, PartRecord } from "../core/meta.ts";
 
@@ -55,7 +55,8 @@ test("a part absent from the run is refused as having produced nothing", () => {
 });
 
 test("an answer already rejected is never sent a second time", () => {
-  const burnt = meta({ wrong: ["11", "12"] });
+  const rejected = (answer: string) => ({ answer, hint: null, at: null });
+  const burnt = meta({ wrong: [rejected("11"), rejected("12")] });
   assert.match(why(choose(REF, burnt, { part1: "11" }, {})), /11 was already rejected/);
   assert.deepEqual(choose(REF, burnt, { part1: "13" }, {}), {
     part: "part1",
@@ -76,4 +77,33 @@ test("only a single bare token can be an answer", () => {
 test("a forced part overrides the run's own opinion of what is next", () => {
   const chosen = choose(REF, meta(), { part1: "11", part2: "31" }, {}, "part2");
   assert.deepEqual(chosen, { part: "part2", answer: "31", langs: [] });
+});
+
+const pages = (...parts: (number | Error)[]) => {
+  let calls = 0;
+  const fetchParts = async () => {
+    const next = parts[calls++];
+    if (next instanceof Error) throw next;
+    return next;
+  };
+  return { fetchParts, calls: () => calls };
+};
+const noPause = async () => {};
+
+test("part 2 fetched on the first try needs nothing more", async () => {
+  const page = pages(2);
+  assert.equal(await partTwoAfter(page.fetchParts, noPause), null);
+  assert.equal(page.calls(), 1);
+});
+
+test("a page still showing only part 1 is fetched once more", async () => {
+  assert.equal(await partTwoAfter(pages(1, 2).fetchParts, noPause), null);
+  assert.match((await partTwoAfter(pages(1, 1).fetchParts, noPause)) ?? "", /not on the page yet/);
+});
+
+test("a failed fetch is reported, not thrown past a correct answer", async () => {
+  assert.match(
+    (await partTwoAfter(pages(new Error("503 busy")).fetchParts, noPause)) ?? "",
+    /could not be fetched: 503 busy/,
+  );
 });

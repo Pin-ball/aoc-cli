@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { PUZZLES, SOLUTIONS, currentYear } from "./config.ts";
-import { LANGUAGES } from "./languages.ts";
+import { PUZZLES, currentYear } from "./config.ts";
+import { LANGUAGES, sourceDir } from "./languages.ts";
 
 const FIRST_YEAR = 2015;
 
@@ -24,9 +24,9 @@ function shown(dir: string): void {
 export function prepare(): void {
   shown(PUZZLES);
   for (const lang of LANGUAGES) {
-    shown(path.join(SOLUTIONS, lang.id));
+    shown(sourceDir(lang.id));
     for (const year of years()) {
-      fs.mkdirSync(path.join(SOLUTIONS, lang.id, String(year)), { recursive: true });
+      fs.mkdirSync(path.join(sourceDir(lang.id), String(year)), { recursive: true });
     }
   }
 }

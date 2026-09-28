@@ -2,7 +2,20 @@ import fs from "node:fs";
 import { parentPort, workerData } from "node:worker_threads";
 import { pathToFileURL } from "node:url";
 
-const { solution, input } = workerData as { solution: string; input: string };
+const { solution, input, parts } = workerData as { solution: string; input: string; parts: string[] };
+
+function relay(stream: "stdout" | "stderr"): typeof process.stdout.write {
+  return ((chunk: string | Uint8Array, ...rest: unknown[]) => {
+    const text = typeof chunk === "string" ? chunk : Buffer.from(chunk).toString();
+    parentPort?.postMessage({ kind: "output", stream, text });
+    const done = rest.find((arg) => typeof arg === "function") as (() => void) | undefined;
+    if (done) queueMicrotask(done);
+    return true;
+  }) as typeof process.stdout.write;
+}
+
+process.stdout.write = relay("stdout");
+process.stderr.write = relay("stderr");
 
 const blank = (value: unknown): string | null => {
   const text = value === null || value === undefined ? "" : String(value).trim();
@@ -23,4 +36,5 @@ const time = (fn: unknown, text: string) => {
 const day = await import(pathToFileURL(solution).href);
 const text = fs.readFileSync(input, "utf8").replace(/\s+$/, "");
 
-parentPort?.postMessage({ part1: time(day.part1, text), part2: time(day.part2, text) });
+const result = Object.fromEntries(parts.map((part) => [part, time(day[part], text)]));
+parentPort?.postMessage({ kind: "result", result });

@@ -2,6 +2,10 @@ import type { Key } from "../tui/keys.ts";
 import { currentYear } from "../core/config.ts";
 import { lastRef } from "../core/state.ts";
 import type { Ref } from "../core/config.ts";
+import { PARTS } from "../core/meta.ts";
+import type { Part } from "../core/meta.ts";
+import { RUN_MODES } from "../core/solve.ts";
+import type { RunMode, Scope } from "../core/solve.ts";
 import { knownYears, yearView } from "./data.ts";
 import type { YearView } from "./data.ts";
 
@@ -16,7 +20,11 @@ export type Tab = "results" | "output" | "history";
 export const TABS: Tab[] = ["results", "output", "history"];
 
 /** Something only the outside world can do, asked for by a keystroke. */
-export type Effect = "rerun" | "browse" | "fetch" | "submit" | "test";
+export type Effect = "rerun" | "scope" | "browse" | "fetch" | "submit" | "test";
+
+export type Focus = "both" | Part;
+
+const FOCUSES: Focus[] = ["both", "part1", "part2"];
 
 export type State = {
   years: number[];
@@ -24,6 +32,8 @@ export type State = {
   day: number;
   screen: Screen;
   tab: Tab;
+  mode: RunMode;
+  focuses: Record<string, Focus>;
   /** Lines held back from the bottom of each pane, kept per day and per tab. */
   scrolls: Record<string, number>;
   /** A one-off line shown in place of the key hints, cleared by the next key. */
@@ -51,6 +61,8 @@ export function initial(): State {
     day: last?.year === year ? last.day : 1,
     screen: "calendar",
     tab: "results",
+    mode: "all",
+    focuses: {},
     scrolls: {},
     notice: null,
     overlay: null,
@@ -63,7 +75,24 @@ export const refOf = (state: State): Ref => ({ year: state.view.year, day: state
 /** Re-reads the year from disk, so a run in another terminal shows up here. */
 export const refresh = (state: State): State => ({ ...state, view: yearView(state.view.year) });
 
-const scrollKey = (state: State): string => `${state.view.year}-${state.day}-${state.tab}`;
+const dayKey = (state: State): string => `${state.view.year}-${state.day}`;
+
+/** The part still to solve, or both once there is none left, unless one was chosen by hand. */
+export function focusOf(state: State): Focus {
+  const chosen = state.focuses[dayKey(state)];
+  if (chosen) return chosen;
+  const answers = state.view.days[state.day - 1]?.answers;
+  return PARTS.find((part) => answers?.[part] === null) ?? "both";
+}
+
+export const scopeOf = (state: State): Scope => {
+  const focus = focusOf(state);
+  return { mode: state.mode, parts: focus === "both" ? PARTS : [focus] };
+};
+
+const next = <T>(all: T[], current: T): T => all[(all.indexOf(current) + 1) % all.length];
+
+const scrollKey = (state: State): string => `${dayKey(state)}-${state.tab}`;
 
 /** Where the pane on screen is scrolled to. Each day remembers each of its tabs. */
 export const scrollOf = (state: State): number => state.scrolls[scrollKey(state)] ?? 0;
@@ -157,6 +186,11 @@ function onDay(state: State, key: Key): Step {
 
   if (typed(key, "n")) return { state, effect: "fetch" };
   if (typed(key, "r")) return { state, effect: "rerun" };
+  if (typed(key, "m")) return { state: { ...state, mode: next(RUN_MODES, state.mode) }, effect: "scope" };
+  if (typed(key, "p")) {
+    const focuses = { ...state.focuses, [dayKey(state)]: next(FOCUSES, focusOf(state)) };
+    return { state: { ...state, focuses }, effect: "scope" };
+  }
   if (typed(key, "o")) return { state, effect: "browse" };
   if (typed(key, "s")) return only({ ...state, overlay: "submit" });
   return only(state);

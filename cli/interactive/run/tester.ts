@@ -3,7 +3,7 @@ import { yearDir } from "../../core/config.ts";
 import type { Ref } from "../../core/config.ts";
 import { present } from "../../core/languages.ts";
 import { PARTS, readMeta } from "../../core/meta.ts";
-import { runDay } from "../../core/solve.ts";
+import { INPUT_ONLY, runDay } from "../../core/solve.ts";
 import { recordVerified } from "../../core/runs.ts";
 import { Abandoned, offloaded } from "./offload.ts";
 
@@ -80,7 +80,7 @@ export class Tester {
       const langs = present(ref).map((lang) => offloaded(lang, { signal: () => signal }));
 
       try {
-        const rows = await runDay(ref, langs, { samples: false });
+        const rows = await runDay(ref, langs, { scope: INPUT_ONLY });
         if (signal.aborted) return;
         recordVerified(ref, rows);
 

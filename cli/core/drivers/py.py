@@ -58,6 +58,7 @@ def emit(payload: str) -> None:
 
 
 def main() -> None:
+    sys.dont_write_bytecode = True
     sys.stdout.reconfigure(line_buffering=True)
     solution_path, input_path = sys.argv[1], sys.argv[2]
     parts = sys.argv[3].split(",") if len(sys.argv) > 3 else ["part1", "part2"]

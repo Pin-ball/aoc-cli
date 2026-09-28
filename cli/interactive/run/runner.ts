@@ -124,10 +124,12 @@ export class Runner {
     const plan = this.#plan;
     const langs = this.#langs;
     const scope = this.#scope;
+    const signal = this.#running?.signal;
 
     try {
       const rows = await runDay(ref, langs, {
         scope,
+        signal,
         onProgress: (partial) => {
           if (token !== this.#token) return;
           this.#rows = settle(plan, partial);
